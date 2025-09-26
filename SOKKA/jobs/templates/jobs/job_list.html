@@ -1,0 +1,26 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>Job Listings</h1>
+<form method="get">
+  <input type="text" name="title" placeholder="Title" value="{{ request.GET.title }}">
+  <input type="text" name="skills" placeholder="Skills (comma separated)" value="{{ request.GET.skills }}">
+  <input type="text" name="location" placeholder="Location" value="{{ request.GET.location }}">
+  <input type="number" name="salary_min" placeholder="Min salary" value="{{ request.GET.salary_min }}">
+  <input type="number" name="salary_max" placeholder="Max salary" value="{{ request.GET.salary_max }}">
+  <label><input type="checkbox" name="is_remote" value="1" {% if request.GET.is_remote %}checked{% endif %}> Remote</label>
+  <label><input type="checkbox" name="visa_sponsorship" value="1" {% if request.GET.visa_sponsorship %}checked{% endif %}> Visa Sponsorship</label>
+  <button type="submit">Filter</button>
+</form>
+
+<ul>
+  {% for job in jobs %}
+    <li>
+      <a href="{% url 'jobs:detail' job.pk %}">{{ job.title }}</a> - {{ job.location }}
+      {% if job.is_remote %}(Remote){% endif %}
+      - {{ job.salary_min }} - {{ job.salary_max }}
+    </li>
+  {% empty %}
+    <li>No jobs found.</li>
+  {% endfor %}
+</ul>
+{% endblock %}
