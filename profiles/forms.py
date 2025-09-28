@@ -138,9 +138,13 @@ class WorkExperienceForm(forms.ModelForm):
         cleaned_data = super().clean()
         is_current = cleaned_data.get('is_current')
         end_date = cleaned_data.get('end_date')
+        start_date = cleaned_data.get('start_date')
         
         if is_current and end_date:
             raise forms.ValidationError("Cannot have an end date if currently working.")
+        
+        if end_date and start_date and end_date < start_date:
+            raise forms.ValidationError("End date cannot be before start date.")
         
         return cleaned_data
 

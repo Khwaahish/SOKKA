@@ -1,8 +1,9 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from .models import Job
-from .forms import JobForm
+from django.contrib import messages
+from .models import Job, JobApplication
+from .forms import JobForm, JobApplicationForm
 
 
 def job_list(request):
@@ -47,7 +48,34 @@ def job_list(request):
 
 def job_detail(request, pk):
     job = get_object_or_404(Job, pk=pk)
-    return render(request, "jobs/job_detail.html", {"job": job})
+    has_applied = False
+    if request.user.is_authenticated:
+        has_applied = JobApplication.objects.filter(job=job, applicant=request.user).exists()
+    return render(request, "jobs/job_detail.html", {"job": job, "has_applied": has_applied})
+
+
+@login_required
+def apply_to_job(request, pk):
+    job = get_object_or_404(Job, pk=pk)
+    
+    # Check if user has already applied
+    if JobApplication.objects.filter(job=job, applicant=request.user).exists():
+        messages.warning(request, "You have already applied to this job.")
+        return redirect("jobs:detail", pk=pk)
+    
+    if request.method == "POST":
+        form = JobApplicationForm(request.POST)
+        if form.is_valid():
+            application = form.save(commit=False)
+            application.job = job
+            application.applicant = request.user
+            application.save()
+            messages.success(request, "Your application has been submitted successfully!")
+            return redirect("jobs:detail", pk=pk)
+    else:
+        form = JobApplicationForm()
+    
+    return render(request, "jobs/apply.html", {"form": form, "job": job})
 
 
 @login_required

@@ -1,0 +1,28 @@
+{% extends "profiles/base.html" %}
+{% block content %}
+<div class="card section-card">
+  <div class="card-body">
+    <h2>Apply to {{ job.title }}</h2>
+    <p><strong>Location:</strong> {{ job.location }} {% if job.is_remote %}<span class="badge bg-info text-dark">Remote</span>{% endif %}</p>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-3">
+        <label for="{{ form.tailored_note.id_for_label }}" class="form-label">Personalized Note</label>
+        {{ form.tailored_note }}
+        {% if form.tailored_note.help_text %}
+          <div class="form-text">{{ form.tailored_note.help_text }}</div>
+        {% endif %}
+        {% if form.tailored_note.errors %}
+          <div class="text-danger">{{ form.tailored_note.errors }}</div>
+        {% endif %}
+      </div>
+      
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Submit Application</button>
+        <a href="{% url 'jobs:detail' job.pk %}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

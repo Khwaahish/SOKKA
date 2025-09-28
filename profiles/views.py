@@ -1,11 +1,13 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.contrib.auth import login
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.contrib.auth.models import User
+from django.contrib.auth.forms import UserCreationForm
 from .models import Profile, ProfileSkill, Education, WorkExperience, Link, Skill
 from .forms import ProfileForm, ProfileSkillForm, EducationForm, WorkExperienceForm, LinkForm, SkillSearchForm
 
@@ -31,6 +33,22 @@ def get_current_profile(request):
 def home(request):
     """Home page - show welcome page with option to create profile"""
     return render(request, 'profiles/home.html')
+
+
+def signup(request):
+    """Sign up page for new users to create accounts"""
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            # Log the user in after successful signup
+            login(request, user)
+            messages.success(request, 'Account created successfully! You are now logged in.')
+            return redirect('profiles:create_profile')
+    else:
+        form = UserCreationForm()
+    
+    return render(request, 'profiles/signup.html', {'form': form})
 
 
 def profile_detail(request, profile_id=None):

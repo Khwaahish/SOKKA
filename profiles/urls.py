@@ -6,6 +6,8 @@ app_name = 'profiles'
 urlpatterns = [
     # Home page
     path('', views.home, name='home'),
+    # Authentication
+    path('signup/', views.signup, name='signup'),
     # Profile management
     path('profile/', views.profile_detail, name='profile_detail'),
     path('create/', views.create_profile, name='create_profile'),

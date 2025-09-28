@@ -27,3 +27,27 @@ class Job(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.location or 'Remote/Unknown'}"
+
+
+class JobApplication(models.Model):
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='applications')
+    applicant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    tailored_note = models.TextField(max_length=1000, help_text="Personalized note to the employer")
+    applied_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'Pending'),
+            ('reviewed', 'Reviewed'),
+            ('accepted', 'Accepted'),
+            ('rejected', 'Rejected'),
+        ],
+        default='pending'
+    )
+
+    class Meta:
+        unique_together = ['job', 'applicant']
+        ordering = ['-applied_at']
+
+    def __str__(self):
+        return f"{self.applicant.get_full_name()} applied to {self.job.title}"

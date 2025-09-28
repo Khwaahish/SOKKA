@@ -5,267 +5,450 @@
 {% block title %}Kanban Board Demo - SOKKA{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        --dark-gradient: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        --light-bg: #f8fafc;
+        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --card-shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        --border-radius: 12px;
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
     body {
-        background: #f4f5f7;
+        background: var(--light-bg);
         min-height: 100vh;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         margin: 0;
         padding: 0;
+        overflow-x: hidden;
     }
     
     .kanban-header {
-        background: #0079bf;
+        background: var(--primary-gradient);
         color: white;
-        padding: 24px 0;
+        padding: 32px 0;
         text-align: center;
-        margin-bottom: 32px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 40px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .kanban-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+        opacity: 0.3;
     }
     
     .kanban-header h1 {
         margin: 0;
-        font-size: 1.8rem;
+        font-size: 2.5rem;
         font-weight: 700;
-        letter-spacing: -0.5px;
+        letter-spacing: -1px;
+        position: relative;
+        z-index: 1;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .kanban-header .subtitle {
+        margin-top: 8px;
+        font-size: 1.1rem;
+        font-weight: 400;
+        opacity: 0.9;
+        position: relative;
+        z-index: 1;
     }
     
     .kanban-container {
         display: flex;
-        gap: 16px;
-        padding: 0 24px;
+        gap: 24px;
+        padding: 0 32px 40px;
         min-height: 70vh;
-        max-width: 1400px;
-        margin: 0 auto 0 0;
-        justify-content: flex-end;
+        max-width: 1600px;
+        margin: 0 auto;
         overflow-x: auto;
+        scroll-behavior: smooth;
     }
     
     .kanban-column {
         flex-shrink: 0;
-        width: 272px;
-        background: #ebecf0;
-        border-radius: 3px;
-        max-height: calc(100vh - 200px);
+        width: 320px;
+        background: white;
+        border-radius: var(--border-radius);
+        max-height: calc(100vh - 240px);
         display: flex;
         flex-direction: column;
-        box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        box-shadow: var(--card-shadow);
+        transition: var(--transition);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .kanban-column:hover {
+        box-shadow: var(--card-shadow-hover);
+        transform: translateY(-2px);
     }
     
     .column-header {
-        padding: 10px 12px;
-        border-radius: 3px 3px 0 0;
+        padding: 20px 24px;
+        border-radius: var(--border-radius) var(--border-radius) 0 0;
         font-weight: 600;
-        font-size: 14px;
-        color: #172b4d;
-        background: #ebecf0;
-        border-bottom: none;
+        font-size: 16px;
+        color: white;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        min-height: 20px;
+        min-height: 24px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .column-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+        pointer-events: none;
     }
     
     .column-content {
-        padding: 8px;
+        padding: 16px;
         flex: 1;
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        background: #ebecf0;
-        border-radius: 0 0 3px 3px;
+        gap: 12px;
+        background: #fafbfc;
+        border-radius: 0 0 var(--border-radius) var(--border-radius);
+        min-height: 200px;
     }
     
     .profile-card {
-        background: #ffffff;
-        border-radius: 3px;
-        padding: 8px 12px;
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 16px 20px;
         cursor: move;
-        transition: all 0.2s ease;
-        box-shadow: 0 1px 0 rgba(0,0,0,0.1);
+        transition: var(--transition);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         position: relative;
         margin: 0;
-        border: none;
-        min-height: 36px;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        min-height: 80px;
         display: flex;
-        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .profile-avatar {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .avatar-placeholder {
+        width: 100%;
+        height: 100%;
+        background: var(--primary-gradient);
+        color: white;
+        display: flex;
+        align-items: center;
         justify-content: center;
+        font-weight: 600;
+        font-size: 16px;
+    }
+    
+    .profile-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .profile-location {
+        color: #a0aec0;
+        font-size: 11px;
+        font-weight: 500;
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .card-actions {
+        display: flex;
+        gap: 4px;
+        opacity: 0;
+        transition: var(--transition);
+    }
+    
+    .profile-card:hover .card-actions {
+        opacity: 1;
+    }
+    
+    .action-btn {
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.05);
+        color: #718096;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        transition: var(--transition);
+    }
+    
+    .action-btn:hover {
+        background: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+        transform: scale(1.1);
     }
     
     .profile-card:hover {
-        background: #f4f5f7;
-        box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+        background: #f8fafc;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+        border-color: rgba(0, 0, 0, 0.1);
     }
     
     .profile-card.dragging {
-        opacity: 0.9;
-        transform: rotate(1deg) scale(1.05);
-        box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        opacity: 0.8;
+        transform: rotate(2deg) scale(1.05);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
         z-index: 1000;
-        background: #ffffff;
+        background: white;
+        border: 2px solid #667eea;
     }
     
     .profile-name {
-        font-weight: 400;
-        color: #172b4d;
-        margin: 0 0 2px 0;
-        font-size: 14px;
-        line-height: 1.3;
+        font-weight: 600;
+        color: #1a202c;
+        margin: 0 0 6px 0;
+        font-size: 15px;
+        line-height: 1.4;
         word-wrap: break-word;
     }
     
     .profile-role {
-        color: #5e6c84;
-        font-size: 12px;
-        font-weight: 400;
-        line-height: 1.2;
+        color: #718096;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.3;
         margin: 0;
         word-wrap: break-word;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .profile-role::before {
+        content: '💼';
+        font-size: 12px;
     }
     
     .empty-column {
         text-align: center;
-        color: #5e6c84;
+        color: #a0aec0;
         font-style: italic;
-        padding: 24px 12px;
-        border: 2px dashed #dfe1e6;
-        border-radius: 3px;
+        padding: 40px 20px;
+        border: 2px dashed #e2e8f0;
+        border-radius: var(--border-radius);
         margin: 8px 0;
-        background: transparent;
-        font-size: 13px;
-        transition: all 0.2s ease;
+        background: linear-gradient(45deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+        font-size: 14px;
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .empty-column::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%);
+        animation: shimmer 2s infinite;
+    }
+    
+    @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
     }
     
     .empty-column i {
-        font-size: 18px;
-        margin-bottom: 8px;
+        font-size: 32px;
+        margin-bottom: 16px;
         display: block;
-        color: #a5adba;
+        color: #cbd5e0;
+        animation: bounce 2s infinite;
+    }
+    
+    .empty-text {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .empty-text strong {
+        color: #a0aec0;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .empty-text small {
+        color: #cbd5e0;
+        font-size: 12px;
+        font-weight: 400;
+    }
+    
+    @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+        40% { transform: translateY(-10px); }
+        60% { transform: translateY(-5px); }
     }
     
     .drag-over {
-        background-color: #e4fcff;
-        border: 2px dashed #00c9ff;
+        background: linear-gradient(135deg, #e6fffa 0%, #f0fff4 100%);
+        border: 2px dashed #38b2ac;
+        transform: scale(1.02);
     }
     
     .drag-over .empty-column {
-        border-color: #00c9ff;
-        color: #026aa7;
-        background: rgba(0, 201, 255, 0.1);
+        border-color: #38b2ac;
+        color: #2d7d77;
+        background: linear-gradient(45deg, rgba(56, 178, 172, 0.1) 0%, rgba(56, 178, 172, 0.2) 100%);
     }
     
-    /* Column header colors matching reference image */
+    /* Enhanced column header colors with gradients */
     .column-header.profile-interest { 
-        background: #0079bf;
-        color: white;
+        background: var(--primary-gradient);
     }
     
     .column-header.resume-review { 
-        background: #d29034;
-        color: white;
+        background: var(--warning-gradient);
     }
     
     .column-header.interview { 
-        background: #8fce00;
-        color: #172b4d;
+        background: var(--success-gradient);
     }
     
     .column-header.hired { 
-        background: #61bd4f;
-        color: white;
+        background: var(--success-gradient);
     }
     
     .column-header.rejected { 
-        background: #cf513d;
-        color: white;
+        background: var(--danger-gradient);
     }
     
     .card-count {
-        background: rgba(255,255,255,0.3);
-        border-radius: 12px;
-        padding: 2px 8px;
-        font-size: 12px;
-        font-weight: 600;
-        min-width: 18px;
+        background: rgba(255,255,255,0.25);
+        border-radius: 20px;
+        padding: 4px 12px;
+        font-size: 13px;
+        font-weight: 700;
+        min-width: 24px;
         text-align: center;
         margin-left: auto;
-    }
-    
-    /* For columns with dark headers, make count more visible */
-    .column-header.profile-interest .card-count,
-    .column-header.resume-review .card-count,
-    .column-header.hired .card-count,
-    .column-header.rejected .card-count {
-        background: rgba(255,255,255,0.4);
-        color: white;
-    }
-    
-    /* For light headers, make count darker */
-    .column-header.interview .card-count {
-        background: rgba(0,0,0,0.1);
-        color: #172b4d;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
     .drag-handle {
         position: absolute;
-        top: 4px;
-        right: 4px;
-        color: #a5adba;
+        top: 8px;
+        right: 8px;
+        color: #cbd5e0;
         cursor: move;
-        font-size: 12px;
+        font-size: 14px;
         opacity: 0;
-        transition: all 0.2s ease;
+        transition: var(--transition);
         line-height: 1;
+        padding: 4px;
+        border-radius: 4px;
+        background: rgba(0,0,0,0.05);
     }
     
     .profile-card:hover .drag-handle {
         opacity: 1;
-        color: #6b778c;
+        color: #718096;
+        background: rgba(0,0,0,0.1);
     }
     
     .profile-card.dragging .drag-handle {
         opacity: 1;
-        color: #0079bf;
+        color: #667eea;
+        background: rgba(102, 126, 234, 0.1);
     }
     
-    /* Improve scrollbar styling for column content */
+    /* Enhanced scrollbar styling */
     .column-content::-webkit-scrollbar {
-        width: 6px;
+        width: 8px;
     }
     
     .column-content::-webkit-scrollbar-track {
         background: transparent;
+        border-radius: 4px;
     }
     
     .column-content::-webkit-scrollbar-thumb {
-        background: rgba(0,0,0,0.2);
-        border-radius: 3px;
+        background: linear-gradient(135deg, #cbd5e0 0%, #a0aec0 100%);
+        border-radius: 4px;
+        border: 2px solid transparent;
+        background-clip: content-box;
     }
     
     .column-content::-webkit-scrollbar-thumb:hover {
-        background: rgba(0,0,0,0.3);
+        background: linear-gradient(135deg, #a0aec0 0%, #718096 100%);
+        background-clip: content-box;
     }
     
     /* Responsive design */
     @media (max-width: 1200px) {
         .kanban-container {
-            gap: 12px;
-            padding: 0 16px 24px;
+            gap: 20px;
+            padding: 0 24px 32px;
         }
         
         .kanban-column {
-            width: 260px;
+            width: 300px;
         }
     }
     
     @media (max-width: 768px) {
         .kanban-container {
             flex-direction: column;
-            gap: 16px;
+            gap: 20px;
             align-items: stretch;
             overflow-x: visible;
+            padding: 0 16px 24px;
         }
         
         .kanban-column {
@@ -275,43 +458,83 @@
         }
         
         .kanban-header h1 {
-            font-size: 1.5rem;
+            font-size: 2rem;
         }
         
         .kanban-header {
-            padding: 16px 0;
-            margin-bottom: 24px;
+            padding: 24px 0;
+            margin-bottom: 32px;
         }
     }
     
-    /* Add a subtle animation for card drops */
+    /* Enhanced animations */
     @keyframes cardDrop {
         0% {
-            transform: scale(1.05);
+            transform: scale(1.1) rotate(2deg);
+            opacity: 0.8;
+        }
+        50% {
+            transform: scale(1.05) rotate(1deg);
             opacity: 0.9;
         }
         100% {
-            transform: scale(1);
+            transform: scale(1) rotate(0deg);
             opacity: 1;
         }
     }
     
     .profile-card.just-dropped {
-        animation: cardDrop 0.3s ease;
+        animation: cardDrop 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
-    /* Improve the visual feedback during drag */
     .kanban-column.drag-target {
-        transform: scale(1.02);
-        transition: transform 0.2s ease;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        transform: scale(1.03);
+        transition: var(--transition);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        border-color: #667eea;
+    }
+    
+    /* Add subtle pulse animation to empty columns */
+    .empty-column {
+        animation: pulse 3s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 0.7; }
+        50% { opacity: 1; }
+    }
+    
+    /* Loading state for cards */
+    .profile-card.loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+    
+    .profile-card.loading::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 20px;
+        height: 20px;
+        margin: -10px 0 0 -10px;
+        border: 2px solid #e2e8f0;
+        border-top: 2px solid #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="kanban-header">
-    <h1>KANBAN BOARD</h1>
+    <h1><i class="fas fa-tasks"></i> KANBAN BOARD</h1>
+    <div class="subtitle">Manage candidate pipeline with drag & drop</div>
 </div>
 
 <div class="kanban-container">
@@ -327,15 +550,46 @@
                  data-card-id="{{ card.id }}" 
                  data-profile-id="{{ card.profile.id }}"
                  draggable="true">
-                <div class="drag-handle">⋮⋮</div>
+                <div class="drag-handle">
+                    <i class="fas fa-grip-vertical"></i>
+                </div>
                 
-                <div class="profile-name">{{ card.profile.get_full_name }}</div>
-                <div class="profile-role">{{ card.profile.headline }}</div>
+                <div class="profile-avatar">
+                    {% if card.profile.profile_picture %}
+                        <img src="{{ card.profile.profile_picture.url }}" alt="{{ card.profile.get_full_name }}" class="avatar-img">
+                    {% else %}
+                        <div class="avatar-placeholder">
+                            {{ card.profile.get_full_name|first|upper }}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="profile-info">
+                    <div class="profile-name">{{ card.profile.get_full_name }}</div>
+                    <div class="profile-role">{{ card.profile.headline }}</div>
+                    {% if card.profile.location %}
+                        <div class="profile-location">
+                            <i class="fas fa-map-marker-alt"></i> {{ card.profile.location }}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="card-actions">
+                    <button class="action-btn" title="View Profile" onclick="viewProfile({{ card.profile.id }})">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="action-btn" title="Like Profile" onclick="likeProfile({{ card.profile.id }})">
+                        <i class="fas fa-heart"></i>
+                    </button>
+                </div>
             </div>
             {% empty %}
             <div class="empty-column">
-                <i class="fas fa-plus"></i>
-                Drop profiles here
+                <i class="fas fa-user-plus"></i>
+                <div class="empty-text">
+                    <strong>No profiles yet</strong>
+                    <small>Drag profiles here to move them to this stage</small>
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -555,6 +809,56 @@
             }
         }
         return cookieValue;
+    }
+
+    // Action button functions
+    function viewProfile(profileId) {
+        window.open(`/profiles/view/profile/${profileId}/`, '_blank');
+    }
+
+    function likeProfile(profileId) {
+        fetch('{% url "kanban:like_profile" 0 %}'.replace('0', profileId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showLikeSuccess();
+            } else {
+                console.error('Error liking profile:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+
+    function showLikeSuccess() {
+        const success = document.createElement('div');
+        success.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+        `;
+        success.innerHTML = '<i class="fas fa-heart"></i> Profile liked!';
+        document.body.appendChild(success);
+        
+        setTimeout(() => {
+            success.remove();
+        }, 2000);
     }
 </script>
 {% endblock %}
