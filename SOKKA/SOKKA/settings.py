@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     # Local apps
     "jobs",
     "profiles",
+    "kanban",
 ]
 
 MIDDLEWARE = [
