@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {% extends "profiles/base.html" %}
 {% block content %}
 {% load job_extras %}
@@ -5,7 +6,7 @@
   <div class="card-body">
     <div class="d-flex justify-content-between">
       <h2>{{ job.title }}</h2>
-      {% if user.is_authenticated %}
+      {% if user.is_authenticated and (user == job.posted_by or user.is_staff) %}
         <a href="{% url 'jobs:edit' job.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
       {% endif %}
     </div>
