@@ -1,10 +1,11 @@
 {% extends "profiles/base.html" %}
 {% block content %}
+{% load job_extras %}
 <div class="card section-card">
   <div class="card-body">
     <div class="d-flex justify-content-between">
       <h2>{{ job.title }}</h2>
-      {% if user.is_authenticated and (user == job.posted_by or user.is_staff) %}
+      {% if user.is_authenticated %}
         <a href="{% url 'jobs:edit' job.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
       {% endif %}
     </div>
@@ -12,8 +13,10 @@
     <p><strong>Location:</strong> {{ job.location }} {% if job.is_remote %}<span class="badge bg-info text-dark">Remote</span>{% endif %}</p>
     <p><strong>Salary:</strong> {{ job.salary_min }} - {{ job.salary_max }}</p>
     <p><strong>Skills:</strong>
-      {% for s in job.skills.split(',') %}
-        <span class="skill-badge">{{ s.strip }}</span>
+      {% for s in job.skills|split:',' %}
+        <span class="skill-badge">{{ s|trim }}</span>
+      {% empty %}
+        <span class="text-muted">No skills listed</span>
       {% endfor %}
     </p>
 
