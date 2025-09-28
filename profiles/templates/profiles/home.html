@@ -1,0 +1,110 @@
+{% extends 'profiles/base.html' %}
+
+{% block title %}SOKKA - Professional Profiles{% endblock %}
+
+{% block content %}
+<div class="hero-section bg-primary text-white py-5 mb-5">
+    <div class="container text-center">
+        <h1 class="display-4 mb-4">
+            <i class="fas fa-users"></i> Professional Profiles
+        </h1>
+        <p class="lead mb-4">Connect talent with opportunity</p>
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <p class="mb-4">Whether you're looking for your next career opportunity or searching for the perfect candidate, SOKKA connects professionals with recruiters.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Two Main Options -->
+    <div class="row mb-5">
+        <!-- Job Seeker Option -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 border-primary">
+                <div class="card-header bg-primary text-white text-center">
+                    <h3 class="mb-0"><i class="fas fa-user-tie"></i> I'm a Job Seeker</h3>
+                </div>
+                <div class="card-body text-center">
+                    <i class="fas fa-user-plus fa-4x text-primary mb-4"></i>
+                    <h5 class="card-title">Create Your Professional Profile</h5>
+                    <p class="card-text mb-4">Build a comprehensive profile to showcase your skills, experience, and achievements to potential employers.</p>
+                    
+                    <div class="text-start mb-4">
+                        <h6><i class="fas fa-check text-success"></i> What you can do:</h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2"><i class="fas fa-arrow-right text-primary"></i> Create a detailed professional profile</li>
+                            <li class="mb-2"><i class="fas fa-arrow-right text-primary"></i> Showcase your skills with proficiency levels</li>
+                            <li class="mb-2"><i class="fas fa-arrow-right text-primary"></i> Add work experience and education</li>
+                            <li class="mb-2"><i class="fas fa-arrow-right text-primary"></i> Include professional links and portfolio</li>
+                            <li class="mb-2"><i class="fas fa-arrow-right text-primary"></i> Get discovered by recruiters</li>
+                        </ul>
+                    </div>
+                    
+                    <a href="{% url 'profiles:create_profile' %}" class="btn btn-primary btn-lg w-100">
+                        <i class="fas fa-user-plus"></i> Create My Profile
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recruiter Option -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 border-success">
+                <div class="card-header bg-success text-white text-center">
+                    <h3 class="mb-0"><i class="fas fa-search"></i> I'm a Recruiter</h3>
+                </div>
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-4x text-success mb-4"></i>
+                    <h5 class="card-title">Find the Perfect Candidates</h5>
+                    <p class="card-text mb-4">Browse and search through professional profiles to find candidates that match your requirements.</p>
+                    
+                    <div class="text-start mb-4">
+                        <h6><i class="fas fa-check text-success"></i> What you can do:</h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2"><i class="fas fa-arrow-right text-success"></i> Browse candidate profiles</li>
+                            <li class="mb-2"><i class="fas fa-arrow-right text-success"></i> Search by skills and experience</li>
+                            <li class="mb-2"><i class="fas fa-arrow-right text-success"></i> View detailed professional backgrounds</li>
+                            <li class="mb-2"><i class="fas fa-arrow-right text-success"></i> Access contact information</li>
+                            <li class="mb-2"><i class="fas fa-arrow-right text-success"></i> Find candidates quickly</li>
+                        </ul>
+                    </div>
+                    
+                    <a href="{% url 'profiles:profile_list' %}" class="btn btn-success btn-lg w-100">
+                        <i class="fas fa-search"></i> Browse Profiles
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Info Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h4 class="card-title"><i class="fas fa-info-circle"></i> How It Works</h4>
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <i class="fas fa-user-plus fa-2x text-primary mb-3"></i>
+                            <h6>1. Create Profile</h6>
+                            <p class="text-muted">Job seekers create detailed professional profiles</p>
+                        </div>
+                        <div class="col-md-4">
+                            <i class="fas fa-search fa-2x text-success mb-3"></i>
+                            <h6>2. Search & Browse</h6>
+                            <p class="text-muted">Recruiters search and filter through profiles</p>
+                        </div>
+                        <div class="col-md-4">
+                            <i class="fas fa-handshake fa-2x text-warning mb-3"></i>
+                            <h6>3. Connect</h6>
+                            <p class="text-muted">Make connections and start conversations</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

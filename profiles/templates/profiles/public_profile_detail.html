@@ -1,0 +1,163 @@
+{% extends 'profiles/base.html' %}
+
+{% block title %}{{ profile.get_full_name }} - Public Profile{% endblock %}
+
+{% block content %}
+<div class="profile-header text-center">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-4">
+                {% if profile.profile_picture %}
+                    <img src="{{ profile.profile_picture.url }}" alt="Profile Picture" class="profile-picture">
+                {% else %}
+                    <div class="profile-picture bg-light d-flex align-items-center justify-content-center">
+                        <i class="fas fa-user fa-4x text-muted"></i>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="col-md-8 text-start">
+                <h1 class="display-4">{{ profile.get_full_name }}</h1>
+                <h2 class="h4 mb-3">{{ profile.headline }}</h2>
+                {% if profile.location %}
+                    <p class="mb-2"><i class="fas fa-map-marker-alt"></i> {{ profile.location }}</p>
+                {% endif %}
+                {% if profile.phone %}
+                    <p class="mb-2"><i class="fas fa-phone"></i> {{ profile.phone }}</p>
+                {% endif %}
+                <p class="mb-3"><i class="fas fa-envelope"></i> {{ profile.get_email }}</p>
+                {% if profile.bio %}
+                    <p class="lead">{{ profile.bio }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container mt-4">
+    <!-- Skills Section -->
+    {% if profile_skills %}
+    <div class="card section-card">
+        <div class="card-header">
+            <h3><i class="fas fa-tools"></i> Skills</h3>
+        </div>
+        <div class="card-body">
+            {% for profile_skill in profile_skills %}
+                <span class="skill-badge">
+                    {{ profile_skill.skill.name }}
+                    <small class="text-muted">({{ profile_skill.get_proficiency_level_display }})</small>
+                </span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Work Experience Section -->
+    {% if work_experiences %}
+    <div class="card section-card">
+        <div class="card-header">
+            <h3><i class="fas fa-briefcase"></i> Work Experience</h3>
+        </div>
+        <div class="card-body">
+            {% for work in work_experiences %}
+                <div class="border-start border-3 border-primary ps-3 mb-4">
+                    <h5 class="mb-1">{{ work.position }}</h5>
+                    <h6 class="text-primary mb-1">{{ work.company }}</h6>
+                    <p class="text-muted mb-1">
+                        <i class="fas fa-calendar"></i>
+                        {{ work.start_date|date:"M Y" }} - 
+                        {% if work.is_current %}
+                            Present
+                        {% else %}
+                            {{ work.end_date|date:"M Y" }}
+                        {% endif %}
+                        {% if work.location %} | {{ work.location }}{% endif %}
+                    </p>
+                    {% if work.description %}
+                        <p class="mt-2">{{ work.description|linebreaks }}</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Education Section -->
+    {% if educations %}
+    <div class="card section-card">
+        <div class="card-header">
+            <h3><i class="fas fa-graduation-cap"></i> Education</h3>
+        </div>
+        <div class="card-body">
+            {% for education in educations %}
+                <div class="border-start border-3 border-success ps-3 mb-4">
+                    <h5 class="mb-1">{{ education.degree }}</h5>
+                    {% if education.field_of_study %}
+                        <h6 class="text-success mb-1">{{ education.field_of_study }}</h6>
+                    {% endif %}
+                    <p class="text-muted mb-1">
+                        <i class="fas fa-university"></i> {{ education.institution }}
+                    </p>
+                    <p class="text-muted mb-1">
+                        <i class="fas fa-calendar"></i>
+                        {{ education.start_date|date:"M Y" }} - 
+                        {% if education.is_current %}
+                            Present
+                        {% else %}
+                            {{ education.end_date|date:"M Y" }}
+                        {% endif %}
+                        {% if education.gpa %} | GPA: {{ education.gpa }}{% endif %}
+                    </p>
+                    {% if education.description %}
+                        <p class="mt-2">{{ education.description|linebreaks }}</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Links Section -->
+    {% if links %}
+    <div class="card section-card">
+        <div class="card-header">
+            <h3><i class="fas fa-link"></i> Links</h3>
+        </div>
+        <div class="card-body">
+            {% for link in links %}
+                <div class="mb-2">
+                    <i class="fas fa-external-link-alt"></i>
+                    <strong>{{ link.get_link_type_display }}:</strong>
+                    <a href="{{ link.url }}" target="_blank" class="text-decoration-none">
+                        {{ link.title|default:link.url }}
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Contact Section -->
+    <div class="card section-card">
+        <div class="card-header">
+            <h3><i class="fas fa-envelope"></i> Contact Information</h3>
+        </div>
+        <div class="card-body">
+            <p><i class="fas fa-envelope"></i> <strong>Email:</strong> {{ profile.get_email }}</p>
+            {% if profile.phone %}
+                <p><i class="fas fa-phone"></i> <strong>Phone:</strong> {{ profile.phone }}</p>
+            {% endif %}
+            {% if profile.location %}
+                <p><i class="fas fa-map-marker-alt"></i> <strong>Location:</strong> {{ profile.location }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Back to Browse -->
+    <div class="text-center mt-4">
+        <a href="{% url 'profiles:profile_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Browse Profiles
+        </a>
+    </div>
+</div>
+{% endblock %}
+
