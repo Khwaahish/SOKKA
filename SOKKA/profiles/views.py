@@ -352,6 +352,8 @@ def profile_list(request):
             Q(user__last_name__icontains=search_query) |
             Q(first_name__icontains=search_query) |
             Q(last_name__icontains=search_query) |
+            Q(location__icontains=search_query) |
+            Q(bio__icontains=search_query) |
             Q(profile_skills__skill__name__icontains=search_query)
         ).distinct()
     
