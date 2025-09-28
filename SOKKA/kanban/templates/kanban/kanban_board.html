@@ -1,0 +1,560 @@
+{% extends 'profiles/base.html' %}
+{% load static %}
+{% load kanban_extras %}
+
+{% block title %}Kanban Board Demo - SOKKA{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<style>
+    body {
+        background: #f4f5f7;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+    }
+    
+    .kanban-header {
+        background: #0079bf;
+        color: white;
+        padding: 24px 0;
+        text-align: center;
+        margin-bottom: 32px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .kanban-header h1 {
+        margin: 0;
+        font-size: 1.8rem;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+    }
+    
+    .kanban-container {
+        display: flex;
+        gap: 16px;
+        padding: 0 24px;
+        min-height: 70vh;
+        max-width: 1400px;
+        margin: 0 auto 0 0;
+        justify-content: flex-end;
+        overflow-x: auto;
+    }
+    
+    .kanban-column {
+        flex-shrink: 0;
+        width: 272px;
+        background: #ebecf0;
+        border-radius: 3px;
+        max-height: calc(100vh - 200px);
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+    }
+    
+    .column-header {
+        padding: 10px 12px;
+        border-radius: 3px 3px 0 0;
+        font-weight: 600;
+        font-size: 14px;
+        color: #172b4d;
+        background: #ebecf0;
+        border-bottom: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 20px;
+    }
+    
+    .column-content {
+        padding: 8px;
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: #ebecf0;
+        border-radius: 0 0 3px 3px;
+    }
+    
+    .profile-card {
+        background: #ffffff;
+        border-radius: 3px;
+        padding: 8px 12px;
+        cursor: move;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 0 rgba(0,0,0,0.1);
+        position: relative;
+        margin: 0;
+        border: none;
+        min-height: 36px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    
+    .profile-card:hover {
+        background: #f4f5f7;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+    }
+    
+    .profile-card.dragging {
+        opacity: 0.9;
+        transform: rotate(1deg) scale(1.05);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        z-index: 1000;
+        background: #ffffff;
+    }
+    
+    .profile-name {
+        font-weight: 400;
+        color: #172b4d;
+        margin: 0 0 2px 0;
+        font-size: 14px;
+        line-height: 1.3;
+        word-wrap: break-word;
+    }
+    
+    .profile-role {
+        color: #5e6c84;
+        font-size: 12px;
+        font-weight: 400;
+        line-height: 1.2;
+        margin: 0;
+        word-wrap: break-word;
+    }
+    
+    .empty-column {
+        text-align: center;
+        color: #5e6c84;
+        font-style: italic;
+        padding: 24px 12px;
+        border: 2px dashed #dfe1e6;
+        border-radius: 3px;
+        margin: 8px 0;
+        background: transparent;
+        font-size: 13px;
+        transition: all 0.2s ease;
+    }
+    
+    .empty-column i {
+        font-size: 18px;
+        margin-bottom: 8px;
+        display: block;
+        color: #a5adba;
+    }
+    
+    .drag-over {
+        background-color: #e4fcff;
+        border: 2px dashed #00c9ff;
+    }
+    
+    .drag-over .empty-column {
+        border-color: #00c9ff;
+        color: #026aa7;
+        background: rgba(0, 201, 255, 0.1);
+    }
+    
+    /* Column header colors matching reference image */
+    .column-header.profile-interest { 
+        background: #0079bf;
+        color: white;
+    }
+    
+    .column-header.resume-review { 
+        background: #d29034;
+        color: white;
+    }
+    
+    .column-header.interview { 
+        background: #8fce00;
+        color: #172b4d;
+    }
+    
+    .column-header.hired { 
+        background: #61bd4f;
+        color: white;
+    }
+    
+    .column-header.rejected { 
+        background: #cf513d;
+        color: white;
+    }
+    
+    .card-count {
+        background: rgba(255,255,255,0.3);
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 12px;
+        font-weight: 600;
+        min-width: 18px;
+        text-align: center;
+        margin-left: auto;
+    }
+    
+    /* For columns with dark headers, make count more visible */
+    .column-header.profile-interest .card-count,
+    .column-header.resume-review .card-count,
+    .column-header.hired .card-count,
+    .column-header.rejected .card-count {
+        background: rgba(255,255,255,0.4);
+        color: white;
+    }
+    
+    /* For light headers, make count darker */
+    .column-header.interview .card-count {
+        background: rgba(0,0,0,0.1);
+        color: #172b4d;
+    }
+    
+    .drag-handle {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        color: #a5adba;
+        cursor: move;
+        font-size: 12px;
+        opacity: 0;
+        transition: all 0.2s ease;
+        line-height: 1;
+    }
+    
+    .profile-card:hover .drag-handle {
+        opacity: 1;
+        color: #6b778c;
+    }
+    
+    .profile-card.dragging .drag-handle {
+        opacity: 1;
+        color: #0079bf;
+    }
+    
+    /* Improve scrollbar styling for column content */
+    .column-content::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .column-content::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    
+    .column-content::-webkit-scrollbar-thumb {
+        background: rgba(0,0,0,0.2);
+        border-radius: 3px;
+    }
+    
+    .column-content::-webkit-scrollbar-thumb:hover {
+        background: rgba(0,0,0,0.3);
+    }
+    
+    /* Responsive design */
+    @media (max-width: 1200px) {
+        .kanban-container {
+            gap: 12px;
+            padding: 0 16px 24px;
+        }
+        
+        .kanban-column {
+            width: 260px;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .kanban-container {
+            flex-direction: column;
+            gap: 16px;
+            align-items: stretch;
+            overflow-x: visible;
+        }
+        
+        .kanban-column {
+            width: 100%;
+            max-width: 100%;
+            max-height: none;
+        }
+        
+        .kanban-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .kanban-header {
+            padding: 16px 0;
+            margin-bottom: 24px;
+        }
+    }
+    
+    /* Add a subtle animation for card drops */
+    @keyframes cardDrop {
+        0% {
+            transform: scale(1.05);
+            opacity: 0.9;
+        }
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+    
+    .profile-card.just-dropped {
+        animation: cardDrop 0.3s ease;
+    }
+    
+    /* Improve the visual feedback during drag */
+    .kanban-column.drag-target {
+        transform: scale(1.02);
+        transition: transform 0.2s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="kanban-header">
+    <h1>KANBAN BOARD</h1>
+</div>
+
+<div class="kanban-container">
+    {% for stage in stages %}
+    <div class="kanban-column" data-stage-id="{{ stage.id }}">
+        <div class="column-header {{ stage.name }}">
+            {{ stage.get_name_display }}
+            <span class="card-count">{{ cards_by_stage|lookup:stage.id|length }}</span>
+        </div>
+        <div class="column-content" data-stage="{{ stage.name }}">
+            {% for card in cards_by_stage|lookup:stage.id %}
+            <div class="profile-card" 
+                 data-card-id="{{ card.id }}" 
+                 data-profile-id="{{ card.profile.id }}"
+                 draggable="true">
+                <div class="drag-handle">⋮⋮</div>
+                
+                <div class="profile-name">{{ card.profile.get_full_name }}</div>
+                <div class="profile-role">{{ card.profile.headline }}</div>
+            </div>
+            {% empty %}
+            <div class="empty-column">
+                <i class="fas fa-plus"></i>
+                Drop profiles here
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let draggedCard = null;
+    let currentCardId = null;
+
+    // Drag and drop functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeDragAndDrop();
+    });
+
+    function initializeDragAndDrop() {
+        const cards = document.querySelectorAll('.profile-card');
+        const columns = document.querySelectorAll('.column-content');
+        
+        // Make cards draggable
+        cards.forEach(card => {
+            card.addEventListener('dragstart', handleDragStart);
+            card.addEventListener('dragend', handleDragEnd);
+            card.addEventListener('drag', handleDrag);
+        });
+        
+        // Make columns droppable
+        columns.forEach(column => {
+            column.addEventListener('dragover', handleDragOver);
+            column.addEventListener('drop', handleDrop);
+            column.addEventListener('dragenter', handleDragEnter);
+            column.addEventListener('dragleave', handleDragLeave);
+        });
+    }
+
+    function handleDragStart(e) {
+        draggedCard = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', this.outerHTML);
+        
+        // Add a slight delay to make the drag effect more visible
+        setTimeout(() => {
+            this.style.opacity = '0.5';
+        }, 0);
+    }
+
+    function handleDrag(e) {
+        // Update drag effect during drag
+        e.dataTransfer.dropEffect = 'move';
+    }
+
+    function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        this.style.opacity = '1';
+        draggedCard = null;
+        
+        // Remove all drag-over classes
+        document.querySelectorAll('.drag-over').forEach(el => {
+            el.classList.remove('drag-over');
+        });
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        return false;
+    }
+
+    function handleDragEnter(e) {
+        e.preventDefault();
+        this.classList.add('drag-over');
+        
+        // Add visual feedback
+        const column = this.closest('.kanban-column');
+        if (column) {
+            column.classList.add('drag-target');
+        }
+    }
+
+    function handleDragLeave(e) {
+        // Only remove drag-over if we're actually leaving the column
+        if (!this.contains(e.relatedTarget)) {
+            this.classList.remove('drag-over');
+            
+            const column = this.closest('.kanban-column');
+            if (column) {
+                column.classList.remove('drag-target');
+            }
+        }
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        this.classList.remove('drag-over');
+        
+        const column = this.closest('.kanban-column');
+        if (column) {
+            column.classList.remove('drag-target');
+        }
+        
+        if (draggedCard) {
+            const newStageId = column.dataset.stageId;
+            const cardId = draggedCard.dataset.cardId;
+            
+            // Check if we're dropping on an empty column
+            const isEmptyColumn = this.querySelector('.empty-column');
+            if (isEmptyColumn) {
+                // Remove the empty column message
+                isEmptyColumn.remove();
+            }
+            
+            // Move the card visually
+            this.appendChild(draggedCard);
+            
+            // Add drop animation
+            draggedCard.classList.add('just-dropped');
+            setTimeout(() => {
+                draggedCard.classList.remove('just-dropped');
+            }, 300);
+            
+            // Update counters immediately for visual feedback
+            updateColumnCounters();
+            
+            // Reinitialize drag and drop for the moved card
+            initializeDragAndDrop();
+            
+            // Update the position in the database
+            updateCardPosition(cardId, newStageId);
+            
+            // Show success feedback
+            showDragSuccess();
+        }
+        
+        return false;
+    }
+
+    function showDragSuccess() {
+        // Create a temporary success indicator
+        const success = document.createElement('div');
+        success.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #61bd4f;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        `;
+        success.textContent = 'Profile moved successfully!';
+        document.body.appendChild(success);
+        
+        setTimeout(() => {
+            success.remove();
+        }, 2000);
+    }
+
+    function updateCardPosition(cardId, newStageId) {
+        fetch('{% url "kanban:move_card" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                card_id: cardId,
+                new_stage_id: newStageId,
+                new_position: 0
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                console.log('Card moved successfully');
+                // Update all column counters
+                updateColumnCounters();
+            } else {
+                console.error('Error moving card:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+
+    function updateColumnCounters() {
+        // Update counters for all columns
+        document.querySelectorAll('.kanban-column').forEach(column => {
+            const columnContent = column.querySelector('.column-content');
+            const cardCount = columnContent.querySelectorAll('.profile-card').length;
+            const counter = column.querySelector('.card-count');
+            if (counter) {
+                counter.textContent = cardCount;
+            }
+        });
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

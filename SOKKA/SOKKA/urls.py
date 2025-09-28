@@ -24,4 +24,5 @@ urlpatterns = [
     path("", TemplateView.as_view(template_name="landing.html"), name="landing"),
     path("jobs/", include("jobs.urls")),
     path("profiles/", include("profiles.urls")),
+    path("kanban/", include("kanban.urls")),
 ]
