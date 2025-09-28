@@ -5,6 +5,17 @@
 <p><strong>Salary:</strong> {{ job.salary_min }} - {{ job.salary_max }}</p>
 <p><strong>Skills:</strong> {{ job.skills }}</p>
 <p>{{ job.description|linebreaks }}</p>
+
+{% if user.is_authenticated %}
+  {% if has_applied %}
+    <p><strong>Status:</strong> You have already applied to this job.</p>
+  {% elif user != job.posted_by %}
+    <p><a href="{% url 'jobs:apply' job.pk %}" class="button">Apply to this Job</a></p>
+  {% endif %}
+{% else %}
+  <p><a href="{% url 'login' %}">Login to apply to this job</a></p>
+{% endif %}
+
 {% if user.is_authenticated and (user == job.posted_by or user.is_staff) %}
   <p><a href="{% url 'jobs:edit' job.pk %}">Edit</a></p>
 {% endif %}

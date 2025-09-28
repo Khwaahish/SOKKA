@@ -1,0 +1,15 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>Apply to {{ job.title }}</h1>
+<p><strong>Location:</strong> {{ job.location }} {% if job.is_remote %}(Remote){% endif %}</p>
+
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <p>
+    <button type="submit">Submit Application</button>
+    <a href="{% url 'jobs:detail' job.pk %}">Cancel</a>
+  </p>
+</form>
+{% endblock %}
+
