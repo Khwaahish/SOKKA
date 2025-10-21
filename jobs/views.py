@@ -4,6 +4,7 @@ from django.db.models import Q
 from django.contrib import messages
 from .models import Job, JobApplication
 from .forms import JobForm, JobApplicationForm
+from profiles.views import recruiter_required, job_seeker_required
 
 
 def job_list(request):
@@ -55,7 +56,9 @@ def job_detail(request, pk):
 
 
 @login_required
+@job_seeker_required
 def apply_to_job(request, pk):
+    """Job seekers can apply to jobs"""
     job = get_object_or_404(Job, pk=pk)
     
     # Check if user has already applied
@@ -79,13 +82,16 @@ def apply_to_job(request, pk):
 
 
 @login_required
+@recruiter_required
 def job_create(request):
+    """Recruiters can post new jobs"""
     if request.method == "POST":
         form = JobForm(request.POST)
         if form.is_valid():
             job = form.save(commit=False)
             job.posted_by = request.user
             job.save()
+            messages.success(request, "Job posted successfully!")
             return redirect("jobs:detail", pk=job.pk)
     else:
         form = JobForm()
@@ -93,14 +99,18 @@ def job_create(request):
 
 
 @login_required
+@recruiter_required
 def job_edit(request, pk):
+    """Recruiters can edit their posted jobs"""
     job = get_object_or_404(Job, pk=pk)
     if request.user != job.posted_by and not request.user.is_staff:
+        messages.error(request, "You can only edit jobs that you posted.")
         return redirect("jobs:detail", pk=job.pk)
     if request.method == "POST":
         form = JobForm(request.POST, instance=job)
         if form.is_valid():
             form.save()
+            messages.success(request, "Job updated successfully!")
             return redirect("jobs:detail", pk=job.pk)
     else:
         form = JobForm(instance=job)

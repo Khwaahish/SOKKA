@@ -10,10 +10,12 @@ from django.db.models import Case, When
 import json
 
 from profiles.models import Profile
+from profiles.views import recruiter_required
 from .models import KanbanBoard, ProfileCard, PipelineStage, ProfileLike
 
 
 @login_required
+@recruiter_required
 def kanban_board(request):
     """Display the kanban board for the current user"""
     # Get or create the user's kanban board
@@ -49,8 +51,9 @@ def kanban_board(request):
 
 
 @login_required
+@recruiter_required
 def like_profile(request, profile_id):
-    """Like a profile and add it to the kanban board"""
+    """Like a profile and add it to the kanban board (Recruiters only)"""
     profile = get_object_or_404(Profile, id=profile_id)
     
     # Check if already liked
@@ -81,8 +84,9 @@ def like_profile(request, profile_id):
 
 
 @login_required
+@recruiter_required
 def unlike_profile(request, profile_id):
-    """Remove a profile from the kanban board"""
+    """Remove a profile from the kanban board (Recruiters only)"""
     profile = get_object_or_404(Profile, id=profile_id)
     
     try:
@@ -100,8 +104,9 @@ def unlike_profile(request, profile_id):
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required, name='dispatch')
+@method_decorator(recruiter_required, name='dispatch')
 class MoveCardView(View):
-    """Handle drag and drop of profile cards between stages"""
+    """Handle drag and drop of profile cards between stages (Recruiters only)"""
     
     def post(self, request):
         try:
@@ -130,8 +135,9 @@ class MoveCardView(View):
 
 
 @login_required
+@recruiter_required
 def update_card_notes(request, card_id):
-    """Update notes for a profile card"""
+    """Update notes for a profile card (Recruiters only)"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -156,7 +162,8 @@ def update_card_notes(request, card_id):
 
 
 @login_required
+@recruiter_required
 def get_liked_profiles(request):
-    """Get all profiles liked by the current user"""
+    """Get all profiles liked by the current user (Recruiters only)"""
     liked_profiles = ProfileLike.objects.filter(recruiter=request.user).values_list('profile_id', flat=True)
     return JsonResponse({'liked_profiles': list(liked_profiles)})

@@ -2,6 +2,36 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+
+class UserProfile(models.Model):
+    """Extended user profile to track user role (Recruiter or Job Seeker)"""
+    USER_TYPE_CHOICES = [
+        ('job_seeker', 'Job Seeker'),
+        ('recruiter', 'Recruiter'),
+    ]
+    
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_profile')
+    user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES, default='job_seeker')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.get_user_type_display()}"
+    
+    def is_recruiter(self):
+        return self.user_type == 'recruiter'
+    
+    def is_job_seeker(self):
+        return self.user_type == 'job_seeker'
+
+
+@receiver(post_save, sender=User)
+def create_or_update_user_profile(sender, instance, created, **kwargs):
+    """Automatically create UserProfile when a User is created"""
+    if created:
+        UserProfile.objects.create(user=instance)
 
 
 class Profile(models.Model):

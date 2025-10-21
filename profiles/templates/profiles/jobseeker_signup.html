@@ -1,0 +1,125 @@
+{% extends "profiles/base.html" %}
+{% block content %}
+<div class="card section-card">
+  <div class="card-body">
+    <div class="text-center mb-4">
+      <div class="role-badge jobseeker-badge">🔍 Job Seeker</div>
+      <h2>Create Job Seeker Account</h2>
+      <p class="text-muted">Sign up to search jobs and apply to opportunities</p>
+    </div>
+    
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+    
+    <form method="post">
+      {% csrf_token %}
+      
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name *</label>
+          {{ form.first_name }}
+          {% if form.first_name.errors %}
+            <div class="text-danger">{{ form.first_name.errors }}</div>
+          {% endif %}
+        </div>
+        
+        <div class="col-md-6 mb-3">
+          <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name *</label>
+          {{ form.last_name }}
+          {% if form.last_name.errors %}
+            <div class="text-danger">{{ form.last_name.errors }}</div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <label for="{{ form.email.id_for_label }}" class="form-label">Email *</label>
+        {{ form.email }}
+        {% if form.email.errors %}
+          <div class="text-danger">{{ form.email.errors }}</div>
+        {% endif %}
+      </div>
+      
+      <div class="mb-3">
+        <label for="{{ form.username.id_for_label }}" class="form-label">Username *</label>
+        {{ form.username }}
+        {% if form.username.errors %}
+          <div class="text-danger">{{ form.username.errors }}</div>
+        {% endif %}
+        {% if form.username.help_text %}
+          <div class="form-text">{{ form.username.help_text }}</div>
+        {% endif %}
+      </div>
+      
+      <div class="mb-3">
+        <label for="{{ form.password1.id_for_label }}" class="form-label">Password *</label>
+        {{ form.password1 }}
+        {% if form.password1.errors %}
+          <div class="text-danger">{{ form.password1.errors }}</div>
+        {% endif %}
+        {% if form.password1.help_text %}
+          <div class="form-text">{{ form.password1.help_text }}</div>
+        {% endif %}
+      </div>
+      
+      <div class="mb-3">
+        <label for="{{ form.password2.id_for_label }}" class="form-label">Confirm Password *</label>
+        {{ form.password2 }}
+        {% if form.password2.errors %}
+          <div class="text-danger">{{ form.password2.errors }}</div>
+        {% endif %}
+      </div>
+      
+      <button type="submit" class="btn btn-primary btn-lg w-100">Create Job Seeker Account</button>
+    </form>
+    <hr class="my-4">
+    <div class="text-center">
+      <p class="mb-2">Already have an account? <a href="{% url 'profiles:jobseeker_login' %}" class="fw-bold">Login here</a></p>
+      <p class="mb-0 text-muted small">Hiring talent? <a href="{% url 'profiles:recruiter_signup' %}">Sign up as Recruiter</a></p>
+      <p class="mb-0 mt-2"><a href="{% url 'landing' %}">← Back to Home</a></p>
+    </div>
+  </div>
+</div>
+
+<style>
+  .role-badge {
+    display: inline-block;
+    padding: 0.5rem 1.5rem;
+    border-radius: 50px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+  }
+  .jobseeker-badge {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+  }
+  .form-control, .form-select {
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+  }
+  .form-control:focus {
+    border-color: #11998e;
+    box-shadow: 0 0 0 0.25rem rgba(17, 153, 142, 0.25);
+  }
+  .section-card {
+    max-width: 600px;
+    margin: 2rem auto;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    border: none;
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%);
+  }
+</style>
+{% endblock %}
+

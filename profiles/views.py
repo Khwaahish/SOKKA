@@ -1,15 +1,56 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from django.contrib.auth import login
-from django.http import JsonResponse
+from django.contrib.auth import login, logout as auth_logout
+from django.http import JsonResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.contrib.auth.models import User
-from django.contrib.auth.forms import UserCreationForm
-from .models import Profile, ProfileSkill, Education, WorkExperience, Link, Skill
-from .forms import ProfileForm, ProfileSkillForm, EducationForm, WorkExperienceForm, LinkForm, SkillSearchForm
+from functools import wraps
+from .models import Profile, ProfileSkill, Education, WorkExperience, Link, Skill, UserProfile
+from .forms import ProfileForm, ProfileSkillForm, EducationForm, WorkExperienceForm, LinkForm, SkillSearchForm, CustomUserCreationForm
+
+
+# Role-based permission decorators
+def recruiter_required(view_func):
+    """Decorator to restrict access to recruiters only"""
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            messages.error(request, 'You must be logged in to access this page.')
+            return redirect('login')
+        
+        try:
+            if not request.user.user_profile.is_recruiter():
+                messages.error(request, 'You must be a recruiter to access this page.')
+                return redirect('profiles:home')
+        except UserProfile.DoesNotExist:
+            messages.error(request, 'User profile not found.')
+            return redirect('profiles:home')
+        
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
+def job_seeker_required(view_func):
+    """Decorator to restrict access to job seekers only"""
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            messages.error(request, 'You must be logged in to access this page.')
+            return redirect('login')
+        
+        try:
+            if not request.user.user_profile.is_job_seeker():
+                messages.error(request, 'You must be a job seeker to access this page.')
+                return redirect('profiles:home')
+        except UserProfile.DoesNotExist:
+            messages.error(request, 'User profile not found.')
+            return redirect('profiles:home')
+        
+        return view_func(request, *args, **kwargs)
+    return wrapper
 
 
 def get_current_profile(request):
@@ -32,23 +73,152 @@ def get_current_profile(request):
 
 def home(request):
     """Home page - show welcome page with option to create profile"""
+    # If user is authenticated, redirect based on role
+    if request.user.is_authenticated:
+        try:
+            if request.user.user_profile.is_recruiter():
+                return redirect('jobs:job_list')
+            else:
+                # Check if job seeker has a profile
+                try:
+                    profile = request.user.profile
+                    return redirect('profiles:profile_detail')
+                except Profile.DoesNotExist:
+                    return redirect('profiles:create_profile')
+        except UserProfile.DoesNotExist:
+            pass
+    
     return render(request, 'profiles/home.html')
+
+
+def recruiter_login(request):
+    """Login page specifically for recruiters"""
+    from django.contrib.auth import authenticate, login as auth_login
+    
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None:
+            # Check if user is a recruiter
+            try:
+                if user.user_profile.is_recruiter():
+                    auth_login(request, user)
+                    messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
+                    return redirect('jobs:job_list')
+                else:
+                    messages.error(request, 'This account is registered as a Job Seeker. Please use the Job Seeker login.')
+                    return redirect('profiles:jobseeker_login')
+            except UserProfile.DoesNotExist:
+                messages.error(request, 'User profile not found. Please contact support.')
+        else:
+            messages.error(request, 'Invalid username or password.')
+    
+    return render(request, 'profiles/recruiter_login.html', {'user_type': 'Recruiter'})
+
+
+def jobseeker_login(request):
+    """Login page specifically for job seekers"""
+    from django.contrib.auth import authenticate, login as auth_login
+    
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None:
+            # Check if user is a job seeker
+            try:
+                if user.user_profile.is_job_seeker():
+                    auth_login(request, user)
+                    messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
+                    # Check if profile exists
+                    try:
+                        profile = user.profile
+                        return redirect('profiles:profile_detail')
+                    except Profile.DoesNotExist:
+                        return redirect('profiles:create_profile')
+                else:
+                    messages.error(request, 'This account is registered as a Recruiter. Please use the Recruiter login.')
+                    return redirect('profiles:recruiter_login')
+            except UserProfile.DoesNotExist:
+                messages.error(request, 'User profile not found. Please contact support.')
+        else:
+            messages.error(request, 'Invalid username or password.')
+    
+    return render(request, 'profiles/jobseeker_login.html', {'user_type': 'Job Seeker'})
+
+
+def recruiter_signup(request):
+    """Sign up page specifically for recruiters"""
+    if request.method == 'POST':
+        form = CustomUserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.save()
+            # Set user type to recruiter
+            user.user_profile.user_type = 'recruiter'
+            user.user_profile.save()
+            # Log the user in
+            login(request, user)
+            messages.success(request, 'Account created successfully! Welcome, Recruiter!')
+            return redirect('jobs:job_list')
+    else:
+        # Pre-set the user_type to recruiter
+        form = CustomUserCreationForm(initial={'user_type': 'recruiter'})
+    
+    return render(request, 'profiles/recruiter_signup.html', {'form': form, 'user_type': 'Recruiter'})
+
+
+def jobseeker_signup(request):
+    """Sign up page specifically for job seekers"""
+    if request.method == 'POST':
+        form = CustomUserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.save()
+            # Set user type to job seeker
+            user.user_profile.user_type = 'job_seeker'
+            user.user_profile.save()
+            # Log the user in
+            login(request, user)
+            messages.success(request, 'Account created successfully! Welcome, Job Seeker!')
+            return redirect('profiles:create_profile')
+    else:
+        # Pre-set the user_type to job_seeker
+        form = CustomUserCreationForm(initial={'user_type': 'job_seeker'})
+    
+    return render(request, 'profiles/jobseeker_signup.html', {'form': form, 'user_type': 'Job Seeker'})
 
 
 def signup(request):
     """Sign up page for new users to create accounts"""
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
             # Log the user in after successful signup
             login(request, user)
-            messages.success(request, 'Account created successfully! You are now logged in.')
-            return redirect('profiles:create_profile')
+            
+            # Redirect based on user type
+            if user.user_profile.is_recruiter():
+                messages.success(request, 'Account created successfully! Welcome, Recruiter!')
+                return redirect('jobs:job_list')  # Recruiters go to job list
+            else:
+                messages.success(request, 'Account created successfully! Welcome, Job Seeker!')
+                return redirect('profiles:create_profile')  # Job seekers create their profile
     else:
-        form = UserCreationForm()
+        form = CustomUserCreationForm()
     
     return render(request, 'profiles/signup.html', {'form': form})
+
+
+def logout_view(request):
+    """Logout the current user and redirect to landing page"""
+    auth_logout(request)
+    messages.success(request, 'You have been logged out successfully.')
+    return redirect('landing')
 
 
 def profile_detail(request, profile_id=None):
@@ -356,6 +526,8 @@ def search_skills(request):
     return JsonResponse({'skills': []})
 
 
+@login_required
+@recruiter_required
 def profile_list(request):
     """List all public profiles (for recruiters to browse)"""
     # Show all profiles (including anonymous ones). Use select_related/prefetch for performance.
@@ -386,6 +558,8 @@ def profile_list(request):
     return render(request, 'profiles/profile_list.html', context)
 
 
+@login_required
+@recruiter_required
 def public_profile_detail(request, user_id):
     """View a public profile (for recruiters)"""
     user = get_object_or_404(User, id=user_id)
@@ -402,8 +576,10 @@ def public_profile_detail(request, user_id):
     return render(request, 'profiles/public_profile_detail.html', context)
 
 
+@login_required
+@recruiter_required
 def profile_detail_by_id(request, profile_id):
-    """View a profile by profile ID (allows viewing anonymous/session-created profiles)."""
+    """View a profile by profile ID (allows viewing anonymous/session-created profiles) - Recruiters only"""
     profile = get_object_or_404(Profile, id=profile_id)
 
     context = {

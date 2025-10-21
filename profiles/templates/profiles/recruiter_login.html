@@ -1,0 +1,76 @@
+{% extends "profiles/base.html" %}
+{% block content %}
+<div class="card section-card">
+  <div class="card-body">
+    <div class="text-center mb-4">
+      <div class="role-badge recruiter-badge">💼 Recruiter</div>
+      <h2>Welcome Back, Recruiter!</h2>
+      <p class="text-muted">Login to manage your jobs and candidates</p>
+    </div>
+    
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+    
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-3">
+        <label for="id_username" class="form-label">Username</label>
+        <input type="text" class="form-control" name="username" id="id_username" required autofocus>
+      </div>
+      <div class="mb-3">
+        <label for="id_password" class="form-label">Password</label>
+        <input type="password" class="form-control" name="password" id="id_password" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-lg w-100">Login as Recruiter</button>
+    </form>
+    <hr class="my-4">
+    <div class="text-center">
+      <p class="mb-2">Don't have a recruiter account? <a href="{% url 'profiles:recruiter_signup' %}" class="fw-bold">Sign up here</a></p>
+      <p class="mb-0 text-muted small">Are you a job seeker? <a href="{% url 'profiles:jobseeker_login' %}">Login as Job Seeker</a></p>
+      <p class="mb-0 mt-2"><a href="{% url 'landing' %}">← Back to Home</a></p>
+    </div>
+  </div>
+</div>
+
+<style>
+  .role-badge {
+    display: inline-block;
+    padding: 0.5rem 1.5rem;
+    border-radius: 50px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+  }
+  .recruiter-badge {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+  .form-control {
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+  }
+  .form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+  }
+  .section-card {
+    max-width: 500px;
+    margin: 2rem auto;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  }
+</style>
+{% endblock %}
+

@@ -200,6 +200,60 @@
             padding: 2rem 0;
         }
         
+        .role-selection {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 3rem;
+            margin-top: 3rem;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .role-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 3rem 2rem;
+            border-radius: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .role-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .role-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        
+        .role-card h2 {
+            color: #667eea;
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+        }
+        
+        .role-card p {
+            color: #666;
+            font-size: 1rem;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+        
+        .role-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .role-actions .btn {
+            padding: 12px 30px;
+            font-size: 1rem;
+        }
+        
         @media (max-width: 768px) {
             .hero h1 {
                 font-size: 2.5rem;
@@ -212,6 +266,15 @@
             .cta-buttons {
                 flex-direction: column;
                 align-items: center;
+            }
+            
+            .role-selection {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+            
+            .role-card {
+                padding: 2rem 1.5rem;
             }
         }
     </style>
@@ -230,11 +293,30 @@
     <main>
         <section class="hero">
             <div class="container">
-                <h1>Connect. Grow. Succeed.</h1>
-                <p>Join SOKKA, the professional network platform that connects talented individuals with amazing opportunities.</p>
-                <div class="cta-buttons">
-                    <a href="{% url 'jobs:list' %}" class="btn">Browse Jobs</a>
-                    <a href="{% url 'profiles:home' %}" class="btn btn-secondary">View Profiles</a>
+                <h1>Welcome to SOKKA</h1>
+                <p>Choose how you want to get started</p>
+                
+                <!-- Role Selection Cards -->
+                <div class="role-selection">
+                    <div class="role-card">
+                        <div class="role-icon">💼</div>
+                        <h2>I'm a Recruiter</h2>
+                        <p>Post jobs, find talented candidates, and manage your hiring pipeline</p>
+                        <div class="role-actions">
+                            <a href="{% url 'profiles:recruiter_login' %}" class="btn">Login</a>
+                            <a href="{% url 'profiles:recruiter_signup' %}" class="btn btn-secondary">Sign Up</a>
+                        </div>
+                    </div>
+                    
+                    <div class="role-card">
+                        <div class="role-icon">🔍</div>
+                        <h2>I'm a Job Seeker</h2>
+                        <p>Create your profile, search for jobs, and apply to opportunities</p>
+                        <div class="role-actions">
+                            <a href="{% url 'profiles:jobseeker_login' %}" class="btn">Login</a>
+                            <a href="{% url 'profiles:jobseeker_signup' %}" class="btn btn-secondary">Sign Up</a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>

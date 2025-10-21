@@ -347,11 +347,11 @@
     }
     
     /* Enhanced column header colors with gradients */
-    .column-header.profile-interest { 
+    .column-header.profile_interest { 
         background: var(--primary-gradient);
     }
     
-    .column-header.resume-review { 
+    .column-header.resume_review { 
         background: var(--warning-gradient);
     }
     
@@ -360,11 +360,26 @@
     }
     
     .column-header.hired { 
-        background: var(--success-gradient);
+        background: linear-gradient(135deg, #38b2ac 0%, #4299e1 100%);
     }
     
     .column-header.rejected { 
         background: var(--danger-gradient);
+    }
+    
+    /* Column titles styling */
+    .column-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    }
+    
+    .column-title i {
+        font-size: 14px;
+        opacity: 0.9;
     }
     
     .card-count {
@@ -541,7 +556,20 @@
     {% for stage in stages %}
     <div class="kanban-column" data-stage-id="{{ stage.id }}">
         <div class="column-header {{ stage.name }}">
-            {{ stage.get_name_display }}
+            <div class="column-title">
+                {% if stage.name == 'profile_interest' %}
+                    <i class="fas fa-eye"></i>
+                {% elif stage.name == 'resume_review' %}
+                    <i class="fas fa-file-alt"></i>
+                {% elif stage.name == 'interview' %}
+                    <i class="fas fa-comments"></i>
+                {% elif stage.name == 'hired' %}
+                    <i class="fas fa-check-circle"></i>
+                {% elif stage.name == 'rejected' %}
+                    <i class="fas fa-times-circle"></i>
+                {% endif %}
+                <span>{{ stage.get_name_display }}</span>
+            </div>
             <span class="card-count">{{ cards_by_stage|lookup:stage.id|length }}</span>
         </div>
         <div class="column-content" data-stage="{{ stage.name }}">

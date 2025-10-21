@@ -1,5 +1,26 @@
 from django.contrib import admin
-from .models import Profile, Skill, ProfileSkill, Education, WorkExperience, Link
+from .models import Profile, Skill, ProfileSkill, Education, WorkExperience, Link, UserProfile
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ['user', 'user_type', 'created_at']
+    list_filter = ['user_type', 'created_at']
+    search_fields = ['user__username', 'user__email', 'user__first_name', 'user__last_name']
+    readonly_fields = ['created_at']
+    
+    fieldsets = (
+        ('User Information', {
+            'fields': ('user',)
+        }),
+        ('Role', {
+            'fields': ('user_type',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
 
 
 class ProfileSkillInline(admin.TabularInline):

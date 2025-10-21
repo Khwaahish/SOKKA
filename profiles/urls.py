@@ -6,8 +6,17 @@ app_name = 'profiles'
 urlpatterns = [
     # Home page
     path('', views.home, name='home'),
-    # Authentication
+    
+    # Authentication - Role-specific
+    path('recruiter/login/', views.recruiter_login, name='recruiter_login'),
+    path('recruiter/signup/', views.recruiter_signup, name='recruiter_signup'),
+    path('jobseeker/login/', views.jobseeker_login, name='jobseeker_login'),
+    path('jobseeker/signup/', views.jobseeker_signup, name='jobseeker_signup'),
+    path('logout/', views.logout_view, name='logout'),
+    
+    # Legacy authentication (for backward compatibility)
     path('signup/', views.signup, name='signup'),
+    
     # Profile management
     path('profile/', views.profile_detail, name='profile_detail'),
     path('create/', views.create_profile, name='create_profile'),

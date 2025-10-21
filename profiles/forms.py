@@ -1,6 +1,41 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import Profile, ProfileSkill, Education, WorkExperience, Link, Skill
+from django.contrib.auth.forms import UserCreationForm
+from .models import Profile, ProfileSkill, Education, WorkExperience, Link, Skill, UserProfile
+
+
+class CustomUserCreationForm(UserCreationForm):
+    """Custom signup form that includes user type selection"""
+    email = forms.EmailField(required=True, help_text="Required. Enter a valid email address.")
+    first_name = forms.CharField(max_length=30, required=True, help_text="Required.")
+    last_name = forms.CharField(max_length=30, required=True, help_text="Required.")
+    user_type = forms.ChoiceField(
+        choices=UserProfile.USER_TYPE_CHOICES,
+        required=False,  # Made optional since we set it programmatically in views
+        widget=forms.RadioSelect,
+        label="I am a",
+        help_text="Select your role on the platform"
+    )
+    
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'first_name', 'last_name', 'password1', 'password2']
+    
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.email = self.cleaned_data['email']
+        user.first_name = self.cleaned_data['first_name']
+        user.last_name = self.cleaned_data['last_name']
+        
+        if commit:
+            user.save()
+            # Update the UserProfile with the selected user_type if provided
+            if self.cleaned_data.get('user_type'):
+                user_profile = user.user_profile
+                user_profile.user_type = self.cleaned_data['user_type']
+                user_profile.save()
+        
+        return user
 
 
 class ProfileForm(forms.ModelForm):
