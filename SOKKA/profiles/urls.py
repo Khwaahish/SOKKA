@@ -34,6 +34,9 @@ urlpatterns = [
     path('browse/', views.profile_list, name='profile_list'),
     path('view/<int:user_id>/', views.public_profile_detail, name='public_profile_detail'),
     
+    # Privacy settings
+    path('privacy/', views.privacy_settings, name='privacy_settings'),
+    
     # AJAX endpoints
     path('api/skills/search/', views.search_skills, name='search_skills'),
 ]

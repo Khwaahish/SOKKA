@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Profile, Skill, ProfileSkill, Education, WorkExperience, Link
+from .models import Profile, Skill, ProfileSkill, Education, WorkExperience, Link, ProfilePrivacySettings
 
 
 class ProfileSkillInline(admin.TabularInline):
@@ -79,3 +79,29 @@ class LinkAdmin(admin.ModelAdmin):
     list_display = ['profile', 'link_type', 'title', 'url']
     list_filter = ['link_type']
     search_fields = ['profile__user__first_name', 'profile__user__last_name', 'title', 'url']
+
+
+@admin.register(ProfilePrivacySettings)
+class ProfilePrivacySettingsAdmin(admin.ModelAdmin):
+    list_display = ['profile', 'profile_visibility', 'allow_contact', 'contact_method', 'updated_at']
+    list_filter = ['profile_visibility', 'allow_contact', 'contact_method']
+    search_fields = ['profile__user__first_name', 'profile__user__last_name']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Profile Visibility', {
+            'fields': ('profile', 'profile_visibility')
+        }),
+        ('Field Visibility', {
+            'fields': ('show_email', 'show_phone', 'show_location', 'show_bio', 'show_skills', 
+                      'show_work_experience', 'show_education', 'show_links', 'show_profile_picture'),
+            'classes': ('collapse',)
+        }),
+        ('Contact Preferences', {
+            'fields': ('allow_contact', 'contact_method')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )

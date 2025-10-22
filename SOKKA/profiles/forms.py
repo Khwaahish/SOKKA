@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import Profile, ProfileSkill, Education, WorkExperience, Link, Skill
+from .models import Profile, ProfileSkill, Education, WorkExperience, Link, Skill, ProfilePrivacySettings
 
 
 class ProfileForm(forms.ModelForm):
@@ -171,4 +171,46 @@ class SkillSearchForm(forms.Form):
             'class': 'form-control'
         })
     )
+
+
+class ProfilePrivacySettingsForm(forms.ModelForm):
+    """Form for managing profile privacy settings"""
+    
+    class Meta:
+        model = ProfilePrivacySettings
+        fields = [
+            'profile_visibility', 'show_email', 'show_phone', 'show_location', 
+            'show_bio', 'show_skills', 'show_work_experience', 'show_education', 
+            'show_links', 'show_profile_picture', 'allow_contact', 'contact_method'
+        ]
+        widgets = {
+            'profile_visibility': forms.RadioSelect(attrs={'class': 'form-check-input'}),
+            'contact_method': forms.Select(attrs={'class': 'form-select'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Add form-control class to checkboxes
+        for field_name in ['show_email', 'show_phone', 'show_location', 'show_bio', 
+                          'show_skills', 'show_work_experience', 'show_education', 
+                          'show_links', 'show_profile_picture', 'allow_contact']:
+            self.fields[field_name].widget.attrs.update({'class': 'form-check-input'})
+        
+        # Add help text styling
+        for field in self.fields.values():
+            if field.help_text:
+                field.widget.attrs.update({'class': field.widget.attrs.get('class', '') + ' form-control'})
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        profile_visibility = cleaned_data.get('profile_visibility')
+        allow_contact = cleaned_data.get('allow_contact')
+        contact_method = cleaned_data.get('contact_method')
+        
+        # If profile is private, contact should be disabled
+        if profile_visibility == 'private' and allow_contact:
+            self.add_error('allow_contact', 'Contact must be disabled when profile is private.')
+        
+        return cleaned_data
 

@@ -6,8 +6,8 @@ from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.contrib.auth.models import User
-from .models import Profile, ProfileSkill, Education, WorkExperience, Link, Skill
-from .forms import ProfileForm, ProfileSkillForm, EducationForm, WorkExperienceForm, LinkForm, SkillSearchForm
+from .models import Profile, ProfileSkill, Education, WorkExperience, Link, Skill, ProfilePrivacySettings
+from .forms import ProfileForm, ProfileSkillForm, EducationForm, WorkExperienceForm, LinkForm, SkillSearchForm, ProfilePrivacySettingsForm
 
 
 def get_current_profile(request):
@@ -341,7 +341,10 @@ def search_skills(request):
 def profile_list(request):
     """List all public profiles (for recruiters to browse)"""
     # Only show profiles that have users (since public_profile_detail requires user_id)
-    profiles = Profile.objects.select_related('user').prefetch_related('profile_skills__skill').filter(user__isnull=False)
+    profiles = Profile.objects.select_related('user').prefetch_related('profile_skills__skill', 'privacy_settings').filter(user__isnull=False)
+    
+    # Filter out private profiles
+    profiles = profiles.exclude(privacy_settings__profile_visibility='private')
     
     # Add search functionality
     search_query = request.GET.get('search', '')
@@ -371,12 +374,65 @@ def public_profile_detail(request, user_id):
     user = get_object_or_404(User, id=user_id)
     profile = get_object_or_404(Profile, user=user)
     
+    # Get privacy settings
+    try:
+        privacy_settings = profile.privacy_settings
+    except ProfilePrivacySettings.DoesNotExist:
+        # Create default privacy settings if they don't exist
+        privacy_settings = ProfilePrivacySettings.objects.create(profile=profile)
+    
+    # Check if profile should be visible
+    if privacy_settings.profile_visibility == 'private':
+        # Profile is private, show limited information
+        context = {
+            'profile': profile,
+            'profile_skills': [],
+            'educations': [],
+            'work_experiences': [],
+            'links': [],
+            'is_public': True,
+            'is_private': True,
+            'privacy_settings': privacy_settings,
+        }
+        return render(request, 'profiles/public_profile_detail.html', context)
+    
+    # Get visible fields based on privacy settings
+    visible_fields = privacy_settings.get_visible_fields()
+    
     context = {
         'profile': profile,
-        'profile_skills': profile.profile_skills.select_related('skill').all(),
-        'educations': profile.educations.all(),
-        'work_experiences': profile.work_experiences.all(),
-        'links': profile.links.all(),
+        'profile_skills': profile.profile_skills.select_related('skill').all() if 'skills' in visible_fields else [],
+        'educations': profile.educations.all() if 'education' in visible_fields else [],
+        'work_experiences': profile.work_experiences.all() if 'work_experience' in visible_fields else [],
+        'links': profile.links.all() if 'links' in visible_fields else [],
         'is_public': True,
+        'is_private': False,
+        'privacy_settings': privacy_settings,
+        'visible_fields': visible_fields,
     }
     return render(request, 'profiles/public_profile_detail.html', context)
+
+
+def privacy_settings(request):
+    """Manage privacy settings for the current profile"""
+    profile = get_current_profile(request)
+    if not profile:
+        messages.error(request, 'Please create a profile first.')
+        return redirect('profiles:create_profile')
+    
+    # Get or create privacy settings
+    try:
+        privacy_settings = profile.privacy_settings
+    except ProfilePrivacySettings.DoesNotExist:
+        privacy_settings = ProfilePrivacySettings.objects.create(profile=profile)
+    
+    if request.method == 'POST':
+        form = ProfilePrivacySettingsForm(request.POST, instance=privacy_settings)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Privacy settings updated successfully!')
+            return redirect('profiles:privacy_settings')
+    else:
+        form = ProfilePrivacySettingsForm(instance=privacy_settings)
+    
+    return render(request, 'profiles/privacy_settings.html', {'form': form, 'privacy_settings': privacy_settings})
