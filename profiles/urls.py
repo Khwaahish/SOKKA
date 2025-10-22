@@ -47,6 +47,9 @@ urlpatterns = [
     # Allow viewing profiles by profile id (works for anonymous profiles as well)
     path('view/profile/<int:profile_id>/', views.profile_detail_by_id, name='public_profile_detail_by_id'),
     
+    # Privacy settings
+    path('privacy/', views.privacy_settings, name='privacy_settings'),
+    
     # AJAX endpoints
     path('api/skills/search/', views.search_skills, name='search_skills'),
 ]

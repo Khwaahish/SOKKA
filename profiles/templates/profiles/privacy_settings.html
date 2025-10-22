@@ -1,0 +1,226 @@
+{% extends 'profiles/base.html' %}
+
+{% block title %}Privacy Settings{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="fas fa-shield-alt"></i> Privacy Settings</h2>
+                <p class="mb-0 text-muted">Control what recruiters can see on your profile</p>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <!-- Profile Visibility Section -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h4 class="mb-0"><i class="fas fa-eye"></i> Profile Visibility</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Who can see your profile?</label>
+                                <div class="form-check">
+                                    {{ form.profile_visibility.0 }}
+                                    <label class="form-check-label" for="{{ form.profile_visibility.0.id_for_label }}">
+                                        <strong>Public</strong> - Visible to all recruiters
+                                        <small class="text-muted d-block">Your profile will appear in search results and can be viewed by any recruiter</small>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    {{ form.profile_visibility.1 }}
+                                    <label class="form-check-label" for="{{ form.profile_visibility.1.id_for_label }}">
+                                        <strong>Private</strong> - Only visible to you
+                                        <small class="text-muted d-block">Your profile will not appear in search results or be viewable by recruiters</small>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    {{ form.profile_visibility.2 }}
+                                    <label class="form-check-label" for="{{ form.profile_visibility.2.id_for_label }}">
+                                        <strong>Selective</strong> - Choose what to show
+                                        <small class="text-muted d-block">Your profile will be visible but you can control which sections recruiters can see</small>
+                                    </label>
+                                </div>
+                                {% if form.profile_visibility.errors %}
+                                    <div class="text-danger">{{ form.profile_visibility.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Field Visibility Section (only shown when selective is chosen) -->
+                    <div class="card mb-4" id="field-visibility-section">
+                        <div class="card-header bg-light">
+                            <h4 class="mb-0"><i class="fas fa-cog"></i> Field Visibility</h4>
+                            <small class="text-muted">Choose which sections to show to recruiters (only applies when "Selective" is chosen above)</small>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check mb-3">
+                                        {{ form.show_email }}
+                                        <label class="form-check-label" for="{{ form.show_email.id_for_label }}">
+                                            <strong>Email Address</strong>
+                                            <small class="text-muted d-block">Show your email to recruiters</small>
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        {{ form.show_phone }}
+                                        <label class="form-check-label" for="{{ form.show_phone.id_for_label }}">
+                                            <strong>Phone Number</strong>
+                                            <small class="text-muted d-block">Show your phone number to recruiters</small>
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        {{ form.show_location }}
+                                        <label class="form-check-label" for="{{ form.show_location.id_for_label }}">
+                                            <strong>Location</strong>
+                                            <small class="text-muted d-block">Show your location to recruiters</small>
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        {{ form.show_bio }}
+                                        <label class="form-check-label" for="{{ form.show_bio.id_for_label }}">
+                                            <strong>Professional Summary</strong>
+                                            <small class="text-muted d-block">Show your bio to recruiters</small>
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        {{ form.show_profile_picture }}
+                                        <label class="form-check-label" for="{{ form.show_profile_picture.id_for_label }}">
+                                            <strong>Profile Picture</strong>
+                                            <small class="text-muted d-block">Show your profile picture to recruiters</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check mb-3">
+                                        {{ form.show_skills }}
+                                        <label class="form-check-label" for="{{ form.show_skills.id_for_label }}">
+                                            <strong>Skills</strong>
+                                            <small class="text-muted d-block">Show your skills to recruiters</small>
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        {{ form.show_work_experience }}
+                                        <label class="form-check-label" for="{{ form.show_work_experience.id_for_label }}">
+                                            <strong>Work Experience</strong>
+                                            <small class="text-muted d-block">Show your work history to recruiters</small>
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        {{ form.show_education }}
+                                        <label class="form-check-label" for="{{ form.show_education.id_for_label }}">
+                                            <strong>Education</strong>
+                                            <small class="text-muted d-block">Show your education to recruiters</small>
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        {{ form.show_links }}
+                                        <label class="form-check-label" for="{{ form.show_links.id_for_label }}">
+                                            <strong>External Links</strong>
+                                            <small class="text-muted d-block">Show your LinkedIn, GitHub, etc. to recruiters</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contact Preferences Section -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h4 class="mb-0"><i class="fas fa-phone"></i> Contact Preferences</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check mb-3">
+                                {{ form.allow_contact }}
+                                <label class="form-check-label" for="{{ form.allow_contact.id_for_label }}">
+                                    <strong>Allow recruiters to contact you</strong>
+                                    <small class="text-muted d-block">Let recruiters reach out to you directly</small>
+                                </label>
+                            </div>
+                            
+                            <div class="mb-3" id="contact-method-section">
+                                <label for="{{ form.contact_method.id_for_label }}" class="form-label fw-bold">Preferred Contact Method</label>
+                                {{ form.contact_method }}
+                                {% if form.contact_method.errors %}
+                                    <div class="text-danger">{{ form.contact_method.errors }}</div>
+                                {% endif %}
+                                <div class="form-text">Choose how you'd like recruiters to contact you</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'profiles:profile_detail' %}" class="btn btn-secondary me-md-2">
+                            <i class="fas fa-arrow-left"></i> Back to Profile
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Privacy Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-check-input:checked {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+    .form-check-input:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    .form-select:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    .card-header.bg-light {
+        background-color: #f8f9fa !important;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const profileVisibilityRadios = document.querySelectorAll('input[name="profile_visibility"]');
+    const fieldVisibilitySection = document.getElementById('field-visibility-section');
+    const contactMethodSection = document.getElementById('contact-method-section');
+    const allowContactCheckbox = document.getElementById('id_allow_contact');
+    
+    function toggleFieldVisibility() {
+        const selectedValue = document.querySelector('input[name="profile_visibility"]:checked').value;
+        if (selectedValue === 'selective') {
+            fieldVisibilitySection.style.display = 'block';
+        } else {
+            fieldVisibilitySection.style.display = 'none';
+        }
+    }
+    
+    function toggleContactMethod() {
+        if (allowContactCheckbox.checked) {
+            contactMethodSection.style.display = 'block';
+        } else {
+            contactMethodSection.style.display = 'none';
+        }
+    }
+    
+    // Initial state
+    toggleFieldVisibility();
+    toggleContactMethod();
+    
+    // Add event listeners
+    profileVisibilityRadios.forEach(radio => {
+        radio.addEventListener('change', toggleFieldVisibility);
+    });
+    
+    allowContactCheckbox.addEventListener('change', toggleContactMethod);
+});
+</script>
+{% endblock %}

@@ -186,3 +186,83 @@ class Link(models.Model):
     
     def __str__(self):
         return f"{self.get_link_type_display()}: {self.title or self.url}"
+
+
+class ProfilePrivacySettings(models.Model):
+    """Privacy settings for profile visibility to recruiters"""
+    PRIVACY_CHOICES = [
+        ('public', 'Public - Visible to all recruiters'),
+        ('private', 'Private - Only visible to you'),
+        ('selective', 'Selective - Choose what to show'),
+    ]
+    
+    profile = models.OneToOneField(Profile, on_delete=models.CASCADE, related_name='privacy_settings')
+    
+    # Overall profile visibility
+    profile_visibility = models.CharField(
+        max_length=20,
+        choices=PRIVACY_CHOICES,
+        default='public',
+        help_text="Control who can see your profile"
+    )
+    
+    # Individual field visibility (only used when profile_visibility is 'selective')
+    show_email = models.BooleanField(default=True, help_text="Show email address to recruiters")
+    show_phone = models.BooleanField(default=True, help_text="Show phone number to recruiters")
+    show_location = models.BooleanField(default=True, help_text="Show location to recruiters")
+    show_bio = models.BooleanField(default=True, help_text="Show professional summary to recruiters")
+    show_skills = models.BooleanField(default=True, help_text="Show skills to recruiters")
+    show_work_experience = models.BooleanField(default=True, help_text="Show work experience to recruiters")
+    show_education = models.BooleanField(default=True, help_text="Show education to recruiters")
+    show_links = models.BooleanField(default=True, help_text="Show external links to recruiters")
+    show_profile_picture = models.BooleanField(default=True, help_text="Show profile picture to recruiters")
+    
+    # Contact preferences
+    allow_contact = models.BooleanField(
+        default=True, 
+        help_text="Allow recruiters to contact you directly"
+    )
+    contact_method = models.CharField(
+        max_length=20,
+        choices=[
+            ('email', 'Email only'),
+            ('phone', 'Phone only'),
+            ('both', 'Email and phone'),
+        ],
+        default='both',
+        help_text="Preferred contact method"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"Privacy Settings for {self.profile.get_full_name()}"
+    
+    def get_visible_fields(self):
+        """Get list of fields that should be visible based on privacy settings"""
+        if self.profile_visibility == 'private':
+            return []
+        elif self.profile_visibility == 'public':
+            return ['email', 'phone', 'location', 'bio', 'skills', 'work_experience', 'education', 'links', 'profile_picture']
+        else:  # selective
+            visible_fields = []
+            if self.show_email:
+                visible_fields.append('email')
+            if self.show_phone:
+                visible_fields.append('phone')
+            if self.show_location:
+                visible_fields.append('location')
+            if self.show_bio:
+                visible_fields.append('bio')
+            if self.show_skills:
+                visible_fields.append('skills')
+            if self.show_work_experience:
+                visible_fields.append('work_experience')
+            if self.show_education:
+                visible_fields.append('education')
+            if self.show_links:
+                visible_fields.append('links')
+            if self.show_profile_picture:
+                visible_fields.append('profile_picture')
+            return visible_fields
