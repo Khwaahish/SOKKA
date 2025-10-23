@@ -14,10 +14,30 @@ from profiles.views import recruiter_required
 from .models import KanbanBoard, ProfileCard, PipelineStage, ProfileLike
 
 
+def _ensure_pipeline_stages():
+    """Ensure all required pipeline stages exist, create them if they don't"""
+    stages_config = [
+        ('profile_interest', 0, '#667eea'),
+        ('resume_review', 1, '#43e97b'),
+        ('interview', 2, '#4facfe'),
+        ('hired', 3, '#38b2ac'),
+        ('rejected', 4, '#fa709a'),
+    ]
+    
+    for name, order, color in stages_config:
+        PipelineStage.objects.get_or_create(
+            name=name,
+            defaults={'order': order, 'color': color}
+        )
+
+
 @login_required
 @recruiter_required
 def kanban_board(request):
     """Display the kanban board for the current user"""
+    # Ensure pipeline stages exist (create if they don't)
+    _ensure_pipeline_stages()
+    
     # Get or create the user's kanban board
     board, created = KanbanBoard.objects.get_or_create(recruiter=request.user)
     
@@ -54,6 +74,9 @@ def kanban_board(request):
 @recruiter_required
 def like_profile(request, profile_id):
     """Like a profile and add it to the kanban board (Recruiters only)"""
+    # Ensure pipeline stages exist
+    _ensure_pipeline_stages()
+    
     profile = get_object_or_404(Profile, id=profile_id)
     
     # Check if already liked

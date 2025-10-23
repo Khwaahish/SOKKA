@@ -552,6 +552,27 @@
     <div class="subtitle">Manage candidate pipeline with drag & drop</div>
 </div>
 
+{% if not stages %}
+<div style="text-align: center; padding: 60px 20px; background: white; margin: 40px auto; max-width: 600px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    <i class="fas fa-exclamation-circle" style="font-size: 48px; color: #fa709a; margin-bottom: 20px;"></i>
+    <h2 style="color: #1a202c; margin-bottom: 12px;">Pipeline Stages Not Found</h2>
+    <p style="color: #718096; margin-bottom: 24px;">
+        The kanban board requires pipeline stages to be set up. Please run migrations to set up your board.
+    </p>
+    <code style="background: #f8fafc; padding: 12px 20px; border-radius: 6px; display: inline-block; color: #667eea; font-family: monospace;">
+        python manage.py migrate
+    </code>
+</div>
+{% elif not cards_by_stage or not cards_by_stage.values|first %}
+<div style="text-align: center; padding: 40px 20px; background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); margin: 20px 32px 40px; border-radius: 12px; border: 2px dashed #cbd5e0;">
+    <i class="fas fa-info-circle" style="font-size: 36px; color: #667eea; margin-bottom: 16px;"></i>
+    <h3 style="color: #1a202c; margin-bottom: 8px;">Your Pipeline is Empty</h3>
+    <p style="color: #718096; margin-bottom: 0; font-size: 14px;">
+        Start by liking profiles from the <a href="{% url 'profiles:profile_list' %}" style="color: #667eea; text-decoration: underline;">profile search</a> to add candidates to your pipeline!
+    </p>
+</div>
+{% endif %}
+
 <div class="kanban-container">
     {% for stage in stages %}
     <div class="kanban-column" data-stage-id="{{ stage.id }}">
