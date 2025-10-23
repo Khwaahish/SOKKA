@@ -530,8 +530,14 @@ def search_skills(request):
 @recruiter_required
 def profile_list(request):
     """List all public profiles (for recruiters to browse)"""
-    # Show all profiles (including anonymous ones). Use select_related/prefetch for performance.
-    profiles = Profile.objects.select_related('user').prefetch_related('profile_skills__skill').all()
+    # Show only profiles that are not private. Use select_related/prefetch for performance.
+    profiles = Profile.objects.select_related('user').prefetch_related('profile_skills__skill', 'privacy_settings').all()
+    
+    # Filter out private profiles (profiles without privacy settings default to public)
+    profiles = profiles.filter(
+        Q(privacy_settings__isnull=True) |  # No privacy settings = public
+        Q(privacy_settings__profile_visibility__in=['public', 'selective'])  # Public or selective
+    )
     
     # Add search functionality
     search_query = request.GET.get('search', '')
@@ -572,13 +578,41 @@ def public_profile_detail(request, profile_id=None, user_id=None):
     else:
         raise Http404("No profile identifier provided")
     
+    # Get privacy settings
+    try:
+        privacy_settings = profile.privacy_settings
+    except ProfilePrivacySettings.DoesNotExist:
+        # Create default privacy settings if they don't exist
+        privacy_settings = ProfilePrivacySettings.objects.create(profile=profile)
+    
+    # Check if profile should be visible
+    if privacy_settings.profile_visibility == 'private':
+        # Profile is private, show limited information
+        context = {
+            'profile': profile,
+            'profile_skills': [],
+            'educations': [],
+            'work_experiences': [],
+            'links': [],
+            'is_public': True,
+            'is_private': True,
+            'privacy_settings': privacy_settings,
+        }
+        return render(request, 'profiles/public_profile_detail.html', context)
+    
+    # Get visible fields based on privacy settings
+    visible_fields = privacy_settings.get_visible_fields()
+    
     context = {
         'profile': profile,
-        'profile_skills': profile.profile_skills.select_related('skill').all(),
-        'educations': profile.educations.all(),
-        'work_experiences': profile.work_experiences.all(),
-        'links': profile.links.all(),
+        'profile_skills': profile.profile_skills.select_related('skill').all() if 'skills' in visible_fields else [],
+        'educations': profile.educations.all() if 'education' in visible_fields else [],
+        'work_experiences': profile.work_experiences.all() if 'work_experience' in visible_fields else [],
+        'links': profile.links.all() if 'links' in visible_fields else [],
         'is_public': True,
+        'is_private': False,
+        'privacy_settings': privacy_settings,
+        'visible_fields': visible_fields,
     }
     return render(request, 'profiles/public_profile_detail.html', context)
 
