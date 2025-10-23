@@ -3,39 +3,75 @@
 {% block title %}{{ profile.get_full_name }} - Public Profile{% endblock %}
 
 {% block content %}
+{% if is_private %}
+<!-- Private Profile Message -->
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-lock fa-4x text-muted mb-4"></i>
+                    <h2>Profile is Private</h2>
+                    <p class="text-muted">This profile is set to private and is not visible to recruiters.</p>
+                    <a href="{% url 'profiles:profile_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Browse Profiles
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
 <div class="profile-header text-center">
     <div class="container">
         <div class="row">
             <div class="col-md-4">
-                {% if profile.profile_picture %}
+                <!-- Show profile picture only if privacy settings allow it -->
+                {% if 'profile_picture' in visible_fields and profile.profile_picture %}
                     <img src="{{ profile.profile_picture.url }}" alt="Profile Picture" class="profile-picture">
-                {% else %}
+                {% elif 'profile_picture' in visible_fields %}
                     <div class="profile-picture bg-light d-flex align-items-center justify-content-center">
                         <i class="fas fa-user fa-4x text-muted"></i>
+                    </div>
+                {% else %}
+                    <!-- Profile picture is hidden by privacy settings -->
+                    <div class="profile-picture bg-light d-flex align-items-center justify-content-center">
+                        <i class="fas fa-user-slash fa-4x text-muted"></i>
                     </div>
                 {% endif %}
             </div>
             <div class="col-md-8 text-start">
                 <h1 class="display-4">{{ profile.get_full_name }}</h1>
                 <h2 class="h4 mb-3">{{ profile.headline }}</h2>
-                {% if profile.location %}
+                
+                <!-- Show location only if privacy settings allow it -->
+                {% if 'location' in visible_fields and profile.location %}
                     <p class="mb-2"><i class="fas fa-map-marker-alt"></i> {{ profile.location }}</p>
                 {% endif %}
-                {% if profile.phone %}
+                
+                <!-- Show phone only if privacy settings allow it -->
+                {% if 'phone' in visible_fields and profile.phone %}
                     <p class="mb-2"><i class="fas fa-phone"></i> {{ profile.phone }}</p>
                 {% endif %}
-                <p class="mb-3"><i class="fas fa-envelope"></i> {{ profile.get_email }}</p>
-                {% if profile.bio %}
+                
+                <!-- Show email only if privacy settings allow it -->
+                {% if 'email' in visible_fields %}
+                    <p class="mb-3"><i class="fas fa-envelope"></i> {{ profile.get_email }}</p>
+                {% endif %}
+                
+                <!-- Show bio only if privacy settings allow it -->
+                {% if 'bio' in visible_fields and profile.bio %}
                     <p class="lead">{{ profile.bio }}</p>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
+{% endif %}
 
 <div class="container mt-4">
     <!-- Skills Section -->
-    {% if profile_skills %}
+    {% if 'skills' in visible_fields and profile_skills %}
     <div class="card section-card">
         <div class="card-header">
             <h3><i class="fas fa-tools"></i> Skills</h3>
@@ -52,7 +88,7 @@
     {% endif %}
 
     <!-- Work Experience Section -->
-    {% if work_experiences %}
+    {% if 'work_experience' in visible_fields and work_experiences %}
     <div class="card section-card">
         <div class="card-header">
             <h3><i class="fas fa-briefcase"></i> Work Experience</h3>
@@ -82,7 +118,7 @@
     {% endif %}
 
     <!-- Education Section -->
-    {% if educations %}
+    {% if 'education' in visible_fields and educations %}
     <div class="card section-card">
         <div class="card-header">
             <h3><i class="fas fa-graduation-cap"></i> Education</h3>
@@ -117,7 +153,7 @@
     {% endif %}
 
     <!-- Links Section -->
-    {% if links %}
+    {% if 'links' in visible_fields and links %}
     <div class="card section-card">
         <div class="card-header">
             <h3><i class="fas fa-link"></i> Links</h3>
@@ -136,21 +172,25 @@
     </div>
     {% endif %}
 
-    <!-- Contact Section -->
+    <!-- Contact Section - Only show if any contact info is visible -->
+    {% if 'email' in visible_fields or 'phone' in visible_fields or 'location' in visible_fields %}
     <div class="card section-card">
         <div class="card-header">
             <h3><i class="fas fa-envelope"></i> Contact Information</h3>
         </div>
         <div class="card-body">
-            <p><i class="fas fa-envelope"></i> <strong>Email:</strong> {{ profile.get_email }}</p>
-            {% if profile.phone %}
+            {% if 'email' in visible_fields %}
+                <p><i class="fas fa-envelope"></i> <strong>Email:</strong> {{ profile.get_email }}</p>
+            {% endif %}
+            {% if 'phone' in visible_fields and profile.phone %}
                 <p><i class="fas fa-phone"></i> <strong>Phone:</strong> {{ profile.phone }}</p>
             {% endif %}
-            {% if profile.location %}
+            {% if 'location' in visible_fields and profile.location %}
                 <p><i class="fas fa-map-marker-alt"></i> <strong>Location:</strong> {{ profile.location }}</p>
             {% endif %}
         </div>
     </div>
+    {% endif %}
 
     <!-- Back to Browse -->
     <div class="text-center mt-4">
@@ -159,5 +199,6 @@
         </a>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
