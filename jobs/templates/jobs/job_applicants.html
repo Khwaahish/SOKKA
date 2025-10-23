@@ -1,0 +1,136 @@
+{% extends "profiles/base.html" %}
+{% load job_extras %}
+{% block content %}
+<div class="card section-card">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Applicants for: {{ job.title }}</h2>
+            <div>
+                <span class="badge bg-primary">{{ applicants.count }} Applicant{{ applicants.count|pluralize }}</span>
+            </div>
+        </div>
+
+        <div class="job-summary mb-4">
+            <p><strong>Location:</strong> {{ job.location }} {% if job.is_remote %}<span class="badge bg-info text-dark">Remote</span>{% endif %}</p>
+            <p><strong>Posted:</strong> {{ job.created_at|date:"M d, Y" }}</p>
+            <p><strong>Required Skills:</strong>
+                {% for skill in job.skills|split:',' %}
+                    <span class="skill-badge">{{ skill|trim }}</span>
+                {% endfor %}
+            </p>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Applicant</th>
+                        <th>Applied Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for application in applicants %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                {% if application.applicant.profile.profile_picture %}
+                                    <img src="{{ application.applicant.profile.profile_picture.url }}" 
+                                         alt="{{ application.applicant.get_full_name }}" 
+                                         class="rounded-circle"
+                                         style="width: 40px; height: 40px; object-fit: cover;">
+                                {% else %}
+                                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                                         style="width: 40px; height: 40px;">
+                                        {{ application.applicant.get_full_name|first|upper }}
+                                    </div>
+                                {% endif %}
+                                <div>
+                                    <div class="fw-bold">{{ application.applicant.get_full_name }}</div>
+                                    <div class="text-muted small">{{ application.applicant.profile.headline|default:"" }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ application.applied_at|date:"M d, Y" }}</td>
+                        <td>
+                            {% if application.pipeline_card %}
+                                <span class="badge bg-info">In Pipeline - {{ application.pipeline_card.stage.get_name_display }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Not In Pipeline</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                <a href="{% url 'profiles:public_profile_detail_by_profile' profile_id=application.applicant.profile.id %}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i> View Profile
+                                </a>
+                                {% if not application.pipeline_card %}
+                                    <button onclick="addToKanban({{ application.id }})" 
+                                            class="btn btn-sm btn-outline-success">
+                                        <i class="fas fa-plus"></i> Add to Pipeline
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="fas fa-users fa-2x mb-2"></i>
+                                <p>No applicants yet for this position.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+function addToKanban(applicationId) {
+    fetch(`/jobs/application/${applicationId}/add-to-kanban/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Refresh the page to show updated status
+            location.reload();
+        } else {
+            alert(data.message || 'Error adding to pipeline');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error adding to pipeline');
+    });
+}
+
+// Function to get CSRF token from cookies
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}
+{% endblock %}

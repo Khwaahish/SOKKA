@@ -197,6 +197,30 @@
         gap: 4px;
     }
     
+    .job-info {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .job-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .application-date {
+        font-size: 11px;
+        color: #718096;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
     .card-actions {
         display: flex;
         gap: 4px;
@@ -621,6 +645,16 @@
                             <i class="fas fa-map-marker-alt"></i> {{ card.profile.location }}
                         </div>
                     {% endif %}
+                    
+                    <!-- Job Application Information -->
+                    <div class="job-info">
+                        <div class="job-title" title="{{ card.job_application.job.title }}">
+                            <i class="fas fa-briefcase"></i> {{ card.job_application.job.title }}
+                        </div>
+                        <div class="application-date">
+                            <i class="far fa-calendar-alt"></i> Applied {{ card.job_application.applied_at|date:"M d, Y" }}
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="card-actions">

@@ -2,9 +2,13 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.contrib import messages
+from django.utils import timezone
+from django.http import JsonResponse
+from django.db import transaction
 from .models import Job, JobApplication
 from .forms import JobForm, JobApplicationForm
 from profiles.views import recruiter_required, job_seeker_required
+from kanban.models import KanbanBoard, PipelineStage, ProfileCard
 
 
 def job_list(request):
@@ -50,9 +54,106 @@ def job_list(request):
 def job_detail(request, pk):
     job = get_object_or_404(Job, pk=pk)
     has_applied = False
+    application = None
+    
+    # If user is a recruiter, redirect to applicants view
+    if request.user.is_authenticated and request.user.user_profile.is_recruiter:
+        return redirect('jobs:applicants', pk=pk)
+    
     if request.user.is_authenticated:
-        has_applied = JobApplication.objects.filter(job=job, applicant=request.user).exists()
-    return render(request, "jobs/job_detail.html", {"job": job, "has_applied": has_applied})
+        try:
+            application = JobApplication.objects.select_related(
+                'kanban_card', 'kanban_card__stage'
+            ).get(job=job, applicant=request.user)
+            has_applied = True
+        except JobApplication.DoesNotExist:
+            pass
+    return render(request, "jobs/job_detail.html", {
+        "job": job, 
+        "has_applied": has_applied,
+        "application": application
+    })
+
+
+@login_required
+@recruiter_required
+def job_applicants(request, pk):
+    """View all applicants for a specific job"""
+    job = get_object_or_404(Job, pk=pk)
+    
+    # Check if the recruiter owns this job posting
+    if request.user != job.posted_by and not request.user.is_staff:
+        messages.error(request, "You can only view applicants for jobs that you posted.")
+        return redirect("jobs:detail", pk=pk)
+    
+    applicants = JobApplication.objects.filter(
+        job=pk
+    ).select_related(
+        'applicant',
+        'applicant__profile',
+        'pipeline_card',
+        'pipeline_card__stage'
+    ).order_by('-applied_at')
+    
+    return render(request, "jobs/job_applicants.html", {
+        "job": job,
+        "applicants": applicants
+    })
+
+
+@login_required
+@recruiter_required
+def add_to_kanban(request, application_id):
+    """Add a job applicant to the Kanban board"""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+    
+    application = get_object_or_404(JobApplication, id=application_id)
+    
+    # Check if recruiter owns the job posting
+    if request.user != application.job.posted_by and not request.user.is_staff:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'You can only add applicants from your own job postings'
+        }, status=403)
+    
+    # Check if already in Kanban
+    if hasattr(application, 'pipeline_card'):
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Applicant is already in your pipeline'
+        }, status=400)
+    
+    try:
+        with transaction.atomic():
+            # Get or create recruiter's board
+            board, _ = KanbanBoard.objects.get_or_create(
+                recruiter=request.user,
+                defaults={'name': 'Hiring Pipeline'}
+            )
+            
+            # Get initial stage
+            initial_stage = PipelineStage.objects.get(name='profile_interest')
+            
+            # Create card
+            ProfileCard.objects.create(
+                board=board,
+                profile=application.applicant.profile,
+                job_application=application,
+                stage=initial_stage,
+                notes=f"Applied for: {application.job.title}\nApplication Date: {application.applied_at}"
+            )
+            
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Successfully added to pipeline'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
 
 
 @login_required
@@ -115,3 +216,18 @@ def job_edit(request, pk):
     else:
         form = JobForm(instance=job)
     return render(request, "jobs/job_form.html", {"form": form, "job": job})
+
+
+@login_required
+@job_seeker_required
+def my_applications(request):
+    """Show all job applications for the current user with their statuses"""
+    applications = JobApplication.objects.filter(
+        applicant=request.user
+    ).select_related(
+        'job', 'job__posted_by', 'kanban_card', 'kanban_card__stage'
+    ).order_by('-applied_at')
+    
+    return render(request, "jobs/my_applications.html", {
+        "applications": applications
+    })

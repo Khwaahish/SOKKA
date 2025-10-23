@@ -44,8 +44,7 @@ urlpatterns = [
     # Public profiles (for recruiters)
     path('browse/', views.profile_list, name='profile_list'),
     path('view/<int:user_id>/', views.public_profile_detail, name='public_profile_detail'),
-    # Allow viewing profiles by profile id (works for anonymous profiles as well)
-    path('view/profile/<int:profile_id>/', views.profile_detail_by_id, name='public_profile_detail_by_id'),
+    path('view/p/<int:profile_id>/', views.public_profile_detail, name='public_profile_detail_by_profile'),
     
     # Privacy settings
     path('privacy/', views.privacy_settings, name='privacy_settings'),

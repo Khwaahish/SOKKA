@@ -28,7 +28,11 @@
     {% if user.is_authenticated %}
       {% if has_applied %}
         <div class="alert alert-info mt-3">
-          <strong>Status:</strong> You have already applied to this job.
+          <strong>Application Status:</strong> {{ application.status_display }}
+          {% if application.kanban_card %}
+          <br>
+          <small class="text-muted">Current Stage: {{ application.kanban_card.stage.get_name_display }}</small>
+          {% endif %}
         </div>
       {% elif user != job.posted_by %}
         <div class="mt-3">

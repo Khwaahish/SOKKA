@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.contrib.auth import login, logout as auth_logout
-from django.http import JsonResponse, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponseForbidden, Http404
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db.models import Q
@@ -560,10 +560,17 @@ def profile_list(request):
 
 @login_required
 @recruiter_required
-def public_profile_detail(request, user_id):
+def public_profile_detail(request, profile_id=None, user_id=None):
     """View a public profile (for recruiters)"""
-    user = get_object_or_404(User, id=user_id)
-    profile = get_object_or_404(Profile, user=user)
+    profile = None
+    
+    if profile_id:
+        profile = get_object_or_404(Profile, id=profile_id)
+    elif user_id:
+        user = get_object_or_404(User, id=user_id)
+        profile = get_object_or_404(Profile, user=user)
+    else:
+        raise Http404("No profile identifier provided")
     
     context = {
         'profile': profile,

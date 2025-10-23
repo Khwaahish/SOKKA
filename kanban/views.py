@@ -59,8 +59,15 @@ def kanban_board(request):
     for stage in stages:
         cards_by_stage[stage.id] = ProfileCard.objects.filter(
             board=board, 
-            stage=stage
-        ).select_related('profile')
+            stage=stage,
+            job_application__isnull=False  # Only show actual job applications
+        ).select_related(
+            'profile', 
+            'job_application', 
+            'job_application__job'
+        ).order_by(
+            '-job_application__applied_at'  # Show newest applications first
+        )
     
     context = {
         'board': board,

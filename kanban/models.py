@@ -52,9 +52,15 @@ class KanbanBoard(models.Model):
 
 
 class ProfileCard(models.Model):
-    """Represents a profile card in the kanban board"""
+    """Represents a profile card in the kanban board for a specific job application"""
     board = models.ForeignKey(KanbanBoard, on_delete=models.CASCADE, related_name='profile_cards')
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='kanban_cards')
+    job_application = models.OneToOneField(
+        'jobs.JobApplication',
+        on_delete=models.CASCADE,
+        related_name='pipeline_card',
+        null=True  # Allow null temporarily for migration
+    )
     stage = models.ForeignKey(PipelineStage, on_delete=models.CASCADE, related_name='profile_cards')
     position = models.PositiveIntegerField(default=0, help_text='Position within the stage')
     notes = models.TextField(blank=True, help_text='Recruiter notes about this candidate')
@@ -63,7 +69,6 @@ class ProfileCard(models.Model):
     
     class Meta:
         ordering = ['stage__order', 'position']
-        unique_together = ['board', 'profile']  # A profile can only appear once per board
     
     def __str__(self):
         return f"{self.profile.get_full_name()} in {self.stage.get_name_display()}"
@@ -78,9 +83,17 @@ class ProfileCard(models.Model):
             ).order_by('-position').first()
             new_position = (last_card.position + 1) if last_card else 0
         
+        old_stage = self.stage
         self.stage = new_stage
         self.position = new_position
-        self.save()
+        self.save(update_fields=['stage', 'position', 'updated_at'])
+        
+        # If the stage has changed, trigger status updates for linked applications
+        if old_stage != new_stage:
+            from jobs.models import JobApplication
+            JobApplication.objects.filter(kanban_card=self).update(
+                updated_at=models.F('updated_at')  # Force an update to trigger save signals
+            )
 
 
 class ProfileLike(models.Model):
