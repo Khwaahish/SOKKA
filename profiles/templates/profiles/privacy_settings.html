@@ -195,8 +195,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const allowContactCheckbox = document.getElementById('id_allow_contact');
     
     function toggleFieldVisibility() {
-        const selectedValue = document.querySelector('input[name="profile_visibility"]:checked').value;
-        if (selectedValue === 'selective') {
+        const selectedRadio = document.querySelector('input[name="profile_visibility"]:checked');
+        if (selectedRadio && selectedRadio.value === 'selective') {
             fieldVisibilitySection.style.display = 'block';
         } else {
             fieldVisibilitySection.style.display = 'none';
@@ -204,23 +204,36 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function toggleContactMethod() {
-        if (allowContactCheckbox.checked) {
+        if (allowContactCheckbox && allowContactCheckbox.checked) {
             contactMethodSection.style.display = 'block';
         } else {
             contactMethodSection.style.display = 'none';
         }
     }
     
+    function handlePrivacyChange() {
+        const selectedRadio = document.querySelector('input[name="profile_visibility"]:checked');
+        if (selectedRadio) {
+            // If private is selected, automatically uncheck allow_contact
+            if (selectedRadio.value === 'private' && allowContactCheckbox) {
+                allowContactCheckbox.checked = false;
+            }
+        }
+        toggleFieldVisibility();
+        toggleContactMethod();
+    }
+    
     // Initial state
-    toggleFieldVisibility();
-    toggleContactMethod();
+    handlePrivacyChange();
     
     // Add event listeners
     profileVisibilityRadios.forEach(radio => {
-        radio.addEventListener('change', toggleFieldVisibility);
+        radio.addEventListener('change', handlePrivacyChange);
     });
     
-    allowContactCheckbox.addEventListener('change', toggleContactMethod);
+    if (allowContactCheckbox) {
+        allowContactCheckbox.addEventListener('change', toggleContactMethod);
+    }
 });
 </script>
 {% endblock %}

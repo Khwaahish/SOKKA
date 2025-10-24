@@ -247,9 +247,9 @@ class ProfilePrivacySettingsForm(forms.ModelForm):
         allow_contact = cleaned_data.get('allow_contact')
         contact_method = cleaned_data.get('contact_method')
         
-        # If profile is private, contact should be disabled
+        # If profile is private, automatically disable contact
         if profile_visibility == 'private' and allow_contact:
-            self.add_error('allow_contact', 'Contact must be disabled when profile is private.')
+            cleaned_data['allow_contact'] = False
         
         return cleaned_data
 
