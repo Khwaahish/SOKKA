@@ -442,3 +442,51 @@ def send_email_to_candidate_direct(request, profile_id):
     }
     
     return render(request, 'jobs/send_email_direct.html', context)
+
+
+@login_required
+@recruiter_required
+def matched_candidates(request):
+    """Show matched candidates for recruiter's job postings using same logic as job recommendations"""
+    # Get all jobs posted by this recruiter
+    recruiter_jobs = Job.objects.filter(posted_by=request.user).order_by('-created_at')
+    
+    # Get all job seekers with profiles
+    job_seekers = Profile.objects.filter(user__user_profile__user_type='job_seeker')
+    
+    # Calculate recommendations for each job using the same logic as job_recommendations
+    job_recommendations = []
+    for job in recruiter_jobs:
+        recommendations = []
+        for job_seeker in job_seekers:
+            # Skip candidates who have already applied to this job
+            if JobApplication.objects.filter(job=job, applicant=job_seeker.user).exists():
+                continue
+                
+            # Calculate skill match score using the same method as job recommendations
+            match_score = job.calculate_skill_match_score(job_seeker)
+            if match_score > 0:  # Only include candidates with some match
+                recommendations.append({
+                    'profile': job_seeker,
+                    'match_score': match_score,
+                    'user': job_seeker.user
+                })
+        
+        # Sort by match score (highest first) - same as job recommendations
+        recommendations.sort(key=lambda x: x['match_score'], reverse=True)
+        
+        # Limit to top 20 recommendations per job (same as job recommendations limit)
+        recommendations = recommendations[:20]
+        
+        # Always include the job, even if no recommendations
+        job_recommendations.append({
+            'job': job,
+            'recommendations': recommendations
+        })
+    
+    context = {
+        'job_recommendations': job_recommendations,
+        'recruiter_jobs': recruiter_jobs,
+    }
+    
+    return render(request, 'jobs/matched_candidates.html', context)
