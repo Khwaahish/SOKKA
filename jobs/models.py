@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from kanban.models import ProfileCard, PipelineStage
+from profiles.models import ProfileSkill
 
 
 class Job(models.Model):
@@ -28,6 +29,47 @@ class Job(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.location or 'Remote/Unknown'}"
+    
+    def get_required_skills(self):
+        """Get list of required skills from the skills field"""
+        if not self.skills:
+            return []
+        return [skill.strip().lower() for skill in self.skills.split(',') if skill.strip()]
+    
+    def calculate_skill_match_score(self, user_profile):
+        """
+        Calculate how well a user's skills match this job's requirements
+        Returns a score between 0 and 100
+        """
+        if not user_profile:
+            return 0
+            
+        required_skills = self.get_required_skills()
+        if not required_skills:
+            return 0
+            
+        user_skills = []
+        try:
+            # Get user's skills from their profile
+            profile_skills = ProfileSkill.objects.filter(profile=user_profile)
+            user_skills = [ps.skill.name.lower() for ps in profile_skills]
+        except:
+            pass
+            
+        if not user_skills:
+            return 0
+            
+        # Calculate matches
+        matches = 0
+        for required_skill in required_skills:
+            for user_skill in user_skills:
+                if required_skill in user_skill or user_skill in required_skill:
+                    matches += 1
+                    break
+        
+        # Calculate percentage match
+        match_percentage = (matches / len(required_skills)) * 100
+        return round(match_percentage, 1)
 
 
 class JobApplication(models.Model):
@@ -96,3 +138,29 @@ class JobApplication(models.Model):
 
     def __str__(self):
         return f"{self.applicant.get_full_name()} applied to {self.job.title}"
+
+
+class EmailCommunication(models.Model):
+    """Model to store email communications between recruiters and candidates"""
+    job_application = models.ForeignKey(JobApplication, on_delete=models.CASCADE, related_name='emails', null=True, blank=True)
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_emails')
+    recipient_email = models.EmailField()
+    subject = models.CharField(max_length=255)
+    message = models.TextField()
+    sent_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-sent_at']
+    
+    def __str__(self):
+        return f"Email to {self.recipient_email} - {self.subject}"
+    
+    def mark_as_read(self):
+        """Mark the email as read"""
+        if not self.is_read:
+            from django.utils import timezone
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save(update_fields=['is_read', 'read_at'])

@@ -79,12 +79,8 @@ def home(request):
             if request.user.user_profile.is_recruiter():
                 return redirect('jobs:job_list')
             else:
-                # Check if job seeker has a profile
-                try:
-                    profile = request.user.profile
-                    return redirect('profiles:profile_detail')
-                except Profile.DoesNotExist:
-                    return redirect('profiles:create_profile')
+                # Job seekers go to job list to browse jobs
+                return redirect('jobs:job_list')
         except UserProfile.DoesNotExist:
             pass
     

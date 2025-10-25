@@ -92,24 +92,33 @@
                         {% endwith %}
                     </div>
                     <div class="card-footer">
-                        {% if profile.user %}
-                            <a href="{% url 'profiles:public_profile_detail' profile.user.id %}" 
-                               class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-eye"></i> View Profile
-                            </a>
-                        {% else %}
-                            {# Link to profile detail by profile ID for anonymous/session profiles #}
-                            <a href="{% url 'profiles:public_profile_detail_by_id' profile.id %}" 
-                               class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-eye"></i> View Profile
-                            </a>
-                        {% endif %}
+                        <div class="btn-group" role="group">
+                            {% if profile.user %}
+                                <a href="{% url 'profiles:public_profile_detail' profile.user.id %}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-eye"></i> View Profile
+                                </a>
+                            {% else %}
+                                {# Link to profile detail by profile ID for anonymous/session profiles #}
+                                <a href="{% url 'profiles:public_profile_detail_by_id' profile.id %}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-eye"></i> View Profile
+                                </a>
+                            {% endif %}
 
-                        {% if user.is_authenticated %}
-                            <button class="btn btn-sm btn-outline-success ms-2 like-btn" data-profile-id="{{ profile.id }}">
-                                <i class="fas fa-heart"></i> Like
-                            </button>
-                        {% endif %}
+                            {% if user.is_authenticated and user.user_profile.is_recruiter %}
+                                <a href="{% url 'jobs:send_email_direct' profile.id %}" 
+                                   class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-envelope"></i> Email
+                                </a>
+                            {% endif %}
+
+                            {% if user.is_authenticated %}
+                                <button class="btn btn-sm btn-outline-success like-btn" data-profile-id="{{ profile.id }}">
+                                    <i class="fas fa-heart"></i> Like
+                                </button>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>

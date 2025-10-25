@@ -192,11 +192,18 @@
     </div>
     {% endif %}
 
-    <!-- Back to Browse -->
+    <!-- Action Buttons -->
     <div class="text-center mt-4">
-        <a href="{% url 'profiles:profile_list' %}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Back to Browse Profiles
-        </a>
+        <div class="btn-group" role="group">
+            <a href="{% url 'profiles:profile_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Browse Profiles
+            </a>
+            {% if user.is_authenticated and user.user_profile.is_recruiter %}
+                <a href="{% url 'jobs:send_email_direct' profile.id %}" class="btn btn-primary">
+                    <i class="fas fa-envelope"></i> Email Candidate
+                </a>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}
