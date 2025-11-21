@@ -36,6 +36,12 @@
     color: white;
     border-color: #0d6efd;
   }
+  #distance-filter-container {
+    padding: 0.5rem;
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    border: 1px solid #dee2e6;
+  }
 </style>
 {% endblock %}
 
@@ -90,15 +96,35 @@
 
 <!-- List View -->
 <div id="list-container">
+  <div id="list-distance-filter-container" class="mb-3 d-none align-items-center gap-2" style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 0.375rem; border: 1px solid #dee2e6;">
+    <label for="list-distance-filter" class="form-label mb-0">
+      <i class="fas fa-filter"></i> Filter by distance:
+    </label>
+    <select id="list-distance-filter" class="form-select form-select-sm" style="width: auto;" onchange="filterListByDistance()">
+      <option value="">Show all jobs</option>
+      <option value="5">Within 5 km</option>
+      <option value="10">Within 10 km</option>
+      <option value="25">Within 25 km</option>
+      <option value="50">Within 50 km</option>
+      <option value="100">Within 100 km</option>
+    </select>
+    <span id="list-filtered-count" class="badge bg-info ms-2"></span>
+  </div>
   {% if jobs %}
-    <div class="list-group">
+    <div id="jobs-list-group" class="list-group">
       {% for job in jobs %}
-        <a class="list-group-item list-group-item-action" href="{% url 'jobs:detail' job.pk %}">
+        <a class="list-group-item list-group-item-action job-item" 
+           href="{% url 'jobs:detail' job.pk %}"
+           data-job-id="{{ job.id }}"
+           data-location="{{ job.location }}">
           <div class="d-flex w-100 justify-content-between">
             <h5 class="mb-1">{{ job.title }}</h5>
             <small>{{ job.created_at|date:"M d, Y" }}</small>
           </div>
-          <p class="mb-1">{{ job.location }} {% if job.is_remote %}<span class="badge bg-info text-dark">Remote</span>{% endif %}</p>
+          <p class="mb-1">
+            {{ job.location }} {% if job.is_remote %}<span class="badge bg-info text-dark">Remote</span>{% endif %}
+            <span class="job-distance text-muted ms-2"></span>
+          </p>
           <small>{{ job.salary_min }} - {{ job.salary_max }}</small>
         </a>
       {% endfor %}
@@ -110,15 +136,31 @@
 
 <!-- Map View -->
 <div id="map-container">
-  <div class="mb-3 d-flex justify-content-between align-items-center">
-    <div>
-      <button class="btn btn-sm btn-outline-primary" onclick="locateUser()">
-        <i class="fas fa-crosshairs"></i> Show My Location
-      </button>
-      <span id="location-status" class="ms-2 text-muted"></span>
+  <div class="mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div>
+        <button class="btn btn-sm btn-outline-primary" onclick="locateUser()">
+          <i class="fas fa-crosshairs"></i> Show My Location
+        </button>
+        <span id="location-status" class="ms-2 text-muted"></span>
+      </div>
+      <div>
+        <span id="jobs-count" class="badge bg-primary"></span>
+      </div>
     </div>
-    <div>
-      <span id="jobs-count" class="badge bg-primary"></span>
+    <div id="distance-filter-container" class="d-none align-items-center gap-2">
+      <label for="distance-filter" class="form-label mb-0">
+        <i class="fas fa-filter"></i> Filter by distance:
+      </label>
+      <select id="distance-filter" class="form-select form-select-sm" style="width: auto;" onchange="filterByDistance()">
+        <option value="">Show all jobs</option>
+        <option value="5">Within 5 km</option>
+        <option value="10">Within 10 km</option>
+        <option value="25">Within 25 km</option>
+        <option value="50">Within 50 km</option>
+        <option value="100">Within 100 km</option>
+      </select>
+      <span id="filtered-count" class="badge bg-info ms-2"></span>
     </div>
   </div>
   <div id="job-map"></div>
@@ -135,6 +177,9 @@
   let userLocation = null;
   const jobsData = {{ jobs_json|safe }};
   // jobsData is populated from server-side JSON
+  
+  // Store job coordinates for list view distance calculation
+  let jobCoordinates = {};
 
   // Initialize map when page loads
   document.addEventListener('DOMContentLoaded', function() {
@@ -189,6 +234,12 @@
           // Store job data with marker for distance calculations
           marker.jobData = job;
           markers.push(marker);
+          
+          // Store coordinates for list view
+          jobCoordinates[job.id] = {
+            lat: coords.lat,
+            lon: coords.lon
+          };
 
           // Fit map to show all markers
           if (markers.length === 1) {
@@ -335,8 +386,11 @@
         statusEl.textContent = 'Location found!';
         statusEl.className = 'ms-2 text-success';
 
-        // Update popups with distances
+        // Update popups with distances and show filter
         updateMarkersWithDistances();
+        
+        // Also update list view with distances if visible
+        updateListViewWithDistances();
       },
       function(error) {
         statusEl.textContent = 'Unable to get your location: ' + error.message;
@@ -348,6 +402,12 @@
   function updateMarkersWithDistances() {
     if (!userLocation) return;
 
+    // Show distance filter container
+    const filterContainer = document.getElementById('distance-filter-container');
+    if (filterContainer) {
+      filterContainer.classList.remove('d-none');
+    }
+
     markers.forEach((marker) => {
       const latLng = marker.getLatLng();
       if (latLng && marker.jobData) {
@@ -357,6 +417,10 @@
           latLng.lat,
           latLng.lng
         );
+        
+        // Store distance with marker for filtering
+        marker.distance = distance;
+        
         const distanceText = distance < 1 
           ? `${Math.round(distance * 1000)}m away`
           : `${distance.toFixed(1)}km away`;
@@ -365,6 +429,73 @@
         marker.setPopupContent(createPopupContentWithDistance(marker.jobData, distanceText));
       }
     });
+
+    // Update filtered count
+    updateFilteredCount();
+  }
+
+  function filterByDistance() {
+    const distanceFilter = document.getElementById('distance-filter');
+    const maxDistance = distanceFilter ? parseFloat(distanceFilter.value) : null;
+    
+    let visibleCount = 0;
+
+    markers.forEach((marker) => {
+      if (maxDistance === null || maxDistance === '' || isNaN(maxDistance)) {
+        // Show all markers
+        if (!map.hasLayer(marker)) {
+          marker.addTo(map);
+        }
+        visibleCount++;
+      } else {
+        // Filter by distance
+        if (marker.distance !== undefined && marker.distance <= maxDistance) {
+          if (!map.hasLayer(marker)) {
+            marker.addTo(map);
+          }
+          visibleCount++;
+        } else {
+          if (map.hasLayer(marker)) {
+            map.removeLayer(marker);
+          }
+        }
+      }
+    });
+
+    // Update filtered count display
+    updateFilteredCount(maxDistance);
+    
+    // Fit map to visible markers
+    const visibleMarkers = markers.filter(marker => {
+      if (maxDistance === null || maxDistance === '' || isNaN(maxDistance)) {
+        return true;
+      }
+      return marker.distance !== undefined && marker.distance <= maxDistance;
+    });
+    
+    if (visibleMarkers.length > 0) {
+      const group = new L.featureGroup(visibleMarkers);
+      map.fitBounds(group.getBounds().pad(0.1));
+    }
+  }
+
+  function updateFilteredCount(maxDistance = null) {
+    const filteredCountEl = document.getElementById('filtered-count');
+    if (!filteredCountEl) return;
+    
+    let visibleCount = 0;
+    
+    if (maxDistance === null || maxDistance === '' || isNaN(maxDistance)) {
+      visibleCount = markers.length;
+      filteredCountEl.textContent = '';
+      filteredCountEl.classList.add('d-none');
+    } else {
+      visibleCount = markers.filter(marker => 
+        marker.distance !== undefined && marker.distance <= maxDistance
+      ).length;
+      filteredCountEl.textContent = `Showing ${visibleCount} of ${markers.length} jobs`;
+      filteredCountEl.classList.remove('d-none');
+    }
   }
 
   function createPopupContentWithDistance(job, distanceText) {
@@ -407,6 +538,165 @@
     const countEl = document.getElementById('jobs-count');
     if (countEl) {
       countEl.textContent = `Showing ${geocoded} of ${total} jobs`;
+    }
+  }
+
+  async function updateListViewWithDistances() {
+    if (!userLocation) return;
+
+    // Show distance filter container for list view
+    const filterContainer = document.getElementById('list-distance-filter-container');
+    if (filterContainer) {
+      filterContainer.classList.remove('d-none');
+    }
+
+    const jobItems = document.querySelectorAll('.job-item');
+    const itemsToGeocode = [];
+    
+    // First pass: use existing coordinates or mark for geocoding
+    for (const item of jobItems) {
+      const jobId = parseInt(item.dataset.jobId);
+      const location = item.dataset.location;
+      
+      // Try to get coordinates from stored data
+      let coords = jobCoordinates[jobId];
+      
+      if (coords && userLocation) {
+        // Already have coordinates, calculate distance immediately
+        const distance = calculateDistanceKm(
+          userLocation.lat,
+          userLocation.lon,
+          coords.lat,
+          coords.lon
+        );
+        
+        item.dataset.distance = distance;
+        
+        const distanceText = distance < 1 
+          ? `${Math.round(distance * 1000)}m away`
+          : `${distance.toFixed(1)}km away`;
+        
+        const distanceEl = item.querySelector('.job-distance');
+        if (distanceEl) {
+          distanceEl.textContent = `• ${distanceText}`;
+        }
+      } else if (location && location.trim() !== '') {
+        // Need to geocode
+        itemsToGeocode.push({ item, jobId, location });
+      }
+    }
+    
+    // Second pass: geocode items that need it (with rate limiting)
+    for (let i = 0; i < itemsToGeocode.length; i++) {
+      const { item, jobId, location } = itemsToGeocode[i];
+      
+      try {
+        const coords = await geocodeLocation(location);
+        if (coords) {
+          jobCoordinates[jobId] = coords;
+          
+          // Calculate and display distance
+          if (userLocation) {
+            const distance = calculateDistanceKm(
+              userLocation.lat,
+              userLocation.lon,
+              coords.lat,
+              coords.lon
+            );
+            
+            item.dataset.distance = distance;
+            
+            const distanceText = distance < 1 
+              ? `${Math.round(distance * 1000)}m away`
+              : `${distance.toFixed(1)}km away`;
+            
+            const distanceEl = item.querySelector('.job-distance');
+            if (distanceEl) {
+              distanceEl.textContent = `• ${distanceText}`;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error geocoding for list view:', error);
+      }
+      
+      // Add delay to respect Nominatim usage policy (1 request per second)
+      if (i < itemsToGeocode.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1100));
+      }
+    }
+
+    // Update filtered count for list view
+    updateListFilteredCount();
+  }
+
+  function filterListByDistance() {
+    const distanceFilter = document.getElementById('list-distance-filter');
+    const maxDistance = distanceFilter ? parseFloat(distanceFilter.value) : null;
+    
+    const jobItems = document.querySelectorAll('.job-item');
+    let visibleCount = 0;
+    
+    jobItems.forEach((item) => {
+      const distance = parseFloat(item.dataset.distance);
+      
+      if (maxDistance === null || maxDistance === '' || isNaN(maxDistance)) {
+        // Show all jobs
+        item.style.display = '';
+        visibleCount++;
+      } else {
+        // Filter by distance
+        if (!isNaN(distance) && distance <= maxDistance) {
+          item.style.display = '';
+          visibleCount++;
+        } else {
+          item.style.display = 'none';
+        }
+      }
+    });
+
+    // Update filtered count display
+    updateListFilteredCount(maxDistance);
+    
+    // Show message if no jobs match
+    const listGroup = document.getElementById('jobs-list-group');
+    if (visibleCount === 0 && listGroup) {
+      const noJobsMsg = document.getElementById('no-jobs-message');
+      if (!noJobsMsg) {
+        const msg = document.createElement('div');
+        msg.id = 'no-jobs-message';
+        msg.className = 'alert alert-info';
+        msg.textContent = 'No jobs found within the selected distance.';
+        listGroup.parentNode.insertBefore(msg, listGroup);
+      }
+    } else {
+      const noJobsMsg = document.getElementById('no-jobs-message');
+      if (noJobsMsg) {
+        noJobsMsg.remove();
+      }
+    }
+  }
+
+  function updateListFilteredCount(maxDistance = null) {
+    const filteredCountEl = document.getElementById('list-filtered-count');
+    if (!filteredCountEl) return;
+    
+    const jobItems = document.querySelectorAll('.job-item');
+    let visibleCount = 0;
+    
+    if (maxDistance === null || maxDistance === '' || isNaN(maxDistance)) {
+      visibleCount = jobItems.length;
+      filteredCountEl.textContent = '';
+      filteredCountEl.classList.add('d-none');
+    } else {
+      jobItems.forEach((item) => {
+        const distance = parseFloat(item.dataset.distance);
+        if (!isNaN(distance) && distance <= maxDistance) {
+          visibleCount++;
+        }
+      });
+      filteredCountEl.textContent = `Showing ${visibleCount} of ${jobItems.length} jobs`;
+      filteredCountEl.classList.remove('d-none');
     }
   }
 </script>
