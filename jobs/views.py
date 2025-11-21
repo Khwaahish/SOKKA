@@ -9,11 +9,35 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.core import serializers
 import json
+import math
 from .models import Job, JobApplication, EmailCommunication
 from .forms import JobForm, JobApplicationForm, EmailForm
 from profiles.views import recruiter_required, job_seeker_required
 from kanban.models import KanbanBoard, PipelineStage, ProfileCard
 from profiles.models import Profile
+
+
+def calculate_distance_miles(lat1, lon1, lat2, lon2):
+    """
+    Calculate the distance between two points on Earth using the Haversine formula.
+    Returns distance in miles.
+    """
+    # Convert latitude and longitude from degrees to radians
+    lat1_rad = math.radians(float(lat1))
+    lon1_rad = math.radians(float(lon1))
+    lat2_rad = math.radians(float(lat2))
+    lon2_rad = math.radians(float(lon2))
+    
+    # Haversine formula
+    dlon = lon2_rad - lon1_rad
+    dlat = lat2_rad - lat1_rad
+    a = math.sin(dlat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon/2)**2
+    c = 2 * math.asin(math.sqrt(a))
+    
+    # Radius of Earth in miles
+    r = 3959.0
+    
+    return c * r
 
 
 def job_list(request):
@@ -52,10 +76,58 @@ def job_list(request):
     if visa in ["1", "true", "True"]:
         qs = qs.filter(visa_sponsorship=True)
 
+    # Filter by commute radius if user is a job seeker with commute radius set
+    user_profile = None
+    commute_radius_miles = None
+    user_lat = None
+    user_lon = None
+    
+    if request.user.is_authenticated:
+        try:
+            if request.user.user_profile.is_job_seeker():
+                try:
+                    user_profile = request.user.profile
+                    if user_profile.commute_radius and user_profile.latitude and user_profile.longitude:
+                        commute_radius_miles = user_profile.commute_radius
+                        user_lat = float(user_profile.latitude)
+                        user_lon = float(user_profile.longitude)
+                except Profile.DoesNotExist:
+                    pass
+        except:
+            pass
+    
+    # Filter jobs by commute radius
+    if commute_radius_miles and user_lat and user_lon:
+        # Get all jobs with coordinates
+        jobs_with_coords = []
+        jobs_without_coords = []
+        
+        for job in qs:
+            # Always include remote jobs
+            if job.is_remote:
+                jobs_with_coords.append(job)
+            elif job.latitude and job.longitude:
+                # Calculate distance
+                distance = calculate_distance_miles(
+                    user_lat, user_lon,
+                    float(job.latitude), float(job.longitude)
+                )
+                if distance <= commute_radius_miles:
+                    jobs_with_coords.append(job)
+            else:
+                # Jobs without coordinates - include them but they won't be filtered
+                jobs_without_coords.append(job)
+        
+        # Combine jobs within radius and jobs without coordinates
+        qs = list(jobs_with_coords) + list(jobs_without_coords)
+    else:
+        # Convert queryset to list for consistency
+        qs = list(qs)
+
     # Prepare jobs data for map view
     jobs_data = []
     for job in qs:
-        jobs_data.append({
+        job_data = {
             'id': job.id,
             'title': job.title,
             'location': job.location or '',
@@ -65,11 +137,18 @@ def job_list(request):
             'description': job.description[:200] + '...' if len(job.description) > 200 else job.description,
             'url': f'/jobs/{job.id}/',
             'skills': job.skills or '',
-        })
+        }
+        # Add coordinates if available
+        if job.latitude and job.longitude:
+            job_data['latitude'] = float(job.latitude)
+            job_data['longitude'] = float(job.longitude)
+        jobs_data.append(job_data)
 
     context = {
         "jobs": qs,
-        "jobs_json": json.dumps(jobs_data)
+        "jobs_json": json.dumps(jobs_data),
+        "has_commute_radius": commute_radius_miles is not None,
+        "commute_radius_miles": commute_radius_miles,
     }
     return render(request, "jobs/job_list.html", context)
 

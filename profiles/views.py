@@ -9,7 +9,7 @@ from django.db.models import Q
 from django.contrib.auth.models import User
 from functools import wraps
 from .models import Profile, ProfileSkill, Education, WorkExperience, Link, Skill, UserProfile, ProfilePrivacySettings
-from .forms import ProfileForm, ProfileSkillForm, EducationForm, WorkExperienceForm, LinkForm, SkillSearchForm, CustomUserCreationForm, ProfilePrivacySettingsForm
+from .forms import ProfileForm, ProfileSkillForm, EducationForm, WorkExperienceForm, LinkForm, SkillSearchForm, CustomUserCreationForm, ProfilePrivacySettingsForm, CommuteRadiusSettingsForm
 
 
 # Role-based permission decorators
@@ -683,3 +683,45 @@ def privacy_settings(request):
         form = ProfilePrivacySettingsForm(instance=privacy_settings)
     
     return render(request, 'profiles/privacy_settings.html', {'form': form, 'privacy_settings': privacy_settings})
+
+
+@job_seeker_required
+def commute_radius_settings(request):
+    """Manage commute radius settings for job seekers"""
+    try:
+        profile = request.user.profile
+    except Profile.DoesNotExist:
+        messages.error(request, 'Please create a profile first.')
+        return redirect('profiles:create_profile')
+    
+    if request.method == 'POST':
+        form = CommuteRadiusSettingsForm(request.POST)
+        if form.is_valid():
+            profile.latitude = form.cleaned_data['latitude']
+            profile.longitude = form.cleaned_data['longitude']
+            profile.commute_radius = form.cleaned_data['commute_radius']
+            # Update location name if provided
+            if form.cleaned_data.get('location_name'):
+                profile.location = form.cleaned_data['location_name']
+            profile.save()
+            messages.success(request, 'Commute radius settings updated successfully!')
+            return redirect('profiles:commute_radius_settings')
+    else:
+        # Pre-populate form with existing values
+        initial_data = {}
+        if profile.latitude and profile.longitude:
+            initial_data['latitude'] = float(profile.latitude)
+            initial_data['longitude'] = float(profile.longitude)
+        if profile.commute_radius:
+            initial_data['commute_radius'] = profile.commute_radius
+        if profile.location:
+            initial_data['location_name'] = profile.location
+        form = CommuteRadiusSettingsForm(initial=initial_data)
+    
+    return render(request, 'profiles/commute_radius_settings.html', {
+        'form': form,
+        'profile': profile,
+        'current_latitude': float(profile.latitude) if profile.latitude else None,
+        'current_longitude': float(profile.longitude) if profile.longitude else None,
+        'current_radius': profile.commute_radius,
+    })

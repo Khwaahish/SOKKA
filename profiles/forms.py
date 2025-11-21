@@ -253,3 +253,43 @@ class ProfilePrivacySettingsForm(forms.ModelForm):
         
         return cleaned_data
 
+
+class CommuteRadiusSettingsForm(forms.Form):
+    """Form for setting commute radius and location on a map"""
+    latitude = forms.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        required=True,
+        widget=forms.HiddenInput(),
+        help_text="Latitude of your preferred location"
+    )
+    longitude = forms.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        required=True,
+        widget=forms.HiddenInput(),
+        help_text="Longitude of your preferred location"
+    )
+    commute_radius = forms.IntegerField(
+        required=True,
+        min_value=1,
+        max_value=500,
+        initial=10,
+        help_text="Preferred commute radius in miles (e.g., 10 for 10 miles)",
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'min': '1',
+            'max': '500',
+            'step': '1'
+        })
+    )
+    location_name = forms.CharField(
+        max_length=255,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., San Francisco, CA'
+        }),
+        help_text="Location name (optional, for display purposes)"
+    )
+

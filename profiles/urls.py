@@ -49,6 +49,9 @@ urlpatterns = [
     # Privacy settings
     path('privacy/', views.privacy_settings, name='privacy_settings'),
     
+    # Commute radius settings (job seekers only)
+    path('commute-radius/', views.commute_radius_settings, name='commute_radius_settings'),
+    
     # AJAX endpoints
     path('api/skills/search/', views.search_skills, name='search_skills'),
 ]
