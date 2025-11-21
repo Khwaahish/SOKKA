@@ -7,6 +7,8 @@ from django.http import JsonResponse
 from django.db import transaction
 from django.core.mail import send_mail
 from django.conf import settings
+from django.core import serializers
+import json
 from .models import Job, JobApplication, EmailCommunication
 from .forms import JobForm, JobApplicationForm, EmailForm
 from profiles.views import recruiter_required, job_seeker_required
@@ -50,7 +52,25 @@ def job_list(request):
     if visa in ["1", "true", "True"]:
         qs = qs.filter(visa_sponsorship=True)
 
-    context = {"jobs": qs}
+    # Prepare jobs data for map view
+    jobs_data = []
+    for job in qs:
+        jobs_data.append({
+            'id': job.id,
+            'title': job.title,
+            'location': job.location or '',
+            'is_remote': job.is_remote,
+            'salary_min': job.salary_min,
+            'salary_max': job.salary_max,
+            'description': job.description[:200] + '...' if len(job.description) > 200 else job.description,
+            'url': f'/jobs/{job.id}/',
+            'skills': job.skills or '',
+        })
+
+    context = {
+        "jobs": qs,
+        "jobs_json": json.dumps(jobs_data)
+    }
     return render(request, "jobs/job_list.html", context)
 
 

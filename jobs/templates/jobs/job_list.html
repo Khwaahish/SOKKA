@@ -1,10 +1,60 @@
 {% extends "profiles/base.html" %}
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  #job-map {
+    height: 600px;
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+  }
+  .view-toggle {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .view-toggle .btn {
+    border-radius: 0.375rem;
+  }
+  .job-marker-popup {
+    max-width: 300px;
+  }
+  .job-marker-popup h6 {
+    margin-bottom: 0.5rem;
+    color: #0d6efd;
+  }
+  .job-marker-popup .badge {
+    margin-right: 0.25rem;
+  }
+  #map-container {
+    display: none;
+  }
+  #list-container {
+    display: block;
+  }
+  .view-toggle .btn.active {
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1>Job Listings</h1>
-  {% if user.is_authenticated %}
-    <a href="{% url 'jobs:create' %}" class="btn btn-success">Post a Job</a>
-  {% endif %}
+  <div class="d-flex align-items-center gap-3">
+    <div class="view-toggle">
+      <button type="button" class="btn btn-outline-primary active" id="list-view-btn" onclick="switchView('list')">
+        <i class="fas fa-list"></i> List View
+      </button>
+      <button type="button" class="btn btn-outline-primary" id="map-view-btn" onclick="switchView('map')">
+        <i class="fas fa-map"></i> Map View
+      </button>
+    </div>
+    {% if user.is_authenticated %}
+      <a href="{% url 'jobs:create' %}" class="btn btn-success">Post a Job</a>
+    {% endif %}
+  </div>
 </div>
 
 <form method="get" class="row g-2 mb-4">
@@ -38,21 +88,326 @@
   </div>
 </form>
 
-{% if jobs %}
-  <div class="list-group">
-    {% for job in jobs %}
-      <a class="list-group-item list-group-item-action" href="{% url 'jobs:detail' job.pk %}">
-        <div class="d-flex w-100 justify-content-between">
-          <h5 class="mb-1">{{ job.title }}</h5>
-          <small>{{ job.created_at|date:"M d, Y" }}</small>
-        </div>
-        <p class="mb-1">{{ job.location }} {% if job.is_remote %}<span class="badge bg-info text-dark">Remote</span>{% endif %}</p>
-        <small>{{ job.salary_min }} - {{ job.salary_max }}</small>
-      </a>
-    {% endfor %}
-  </div>
-{% else %}
-  <div class="alert alert-info">No jobs found.</div>
-{% endif %}
+<!-- List View -->
+<div id="list-container">
+  {% if jobs %}
+    <div class="list-group">
+      {% for job in jobs %}
+        <a class="list-group-item list-group-item-action" href="{% url 'jobs:detail' job.pk %}">
+          <div class="d-flex w-100 justify-content-between">
+            <h5 class="mb-1">{{ job.title }}</h5>
+            <small>{{ job.created_at|date:"M d, Y" }}</small>
+          </div>
+          <p class="mb-1">{{ job.location }} {% if job.is_remote %}<span class="badge bg-info text-dark">Remote</span>{% endif %}</p>
+          <small>{{ job.salary_min }} - {{ job.salary_max }}</small>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-info">No jobs found.</div>
+  {% endif %}
+</div>
 
+<!-- Map View -->
+<div id="map-container">
+  <div class="mb-3 d-flex justify-content-between align-items-center">
+    <div>
+      <button class="btn btn-sm btn-outline-primary" onclick="locateUser()">
+        <i class="fas fa-crosshairs"></i> Show My Location
+      </button>
+      <span id="location-status" class="ms-2 text-muted"></span>
+    </div>
+    <div>
+      <span id="jobs-count" class="badge bg-primary"></span>
+    </div>
+  </div>
+  <div id="job-map"></div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  let map;
+  let markers = [];
+  let userMarker = null;
+  let userLocation = null;
+  const jobsData = {{ jobs_json|safe }};
+  // jobsData is populated from server-side JSON
+
+  // Initialize map when page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    initMap();
+  });
+
+  function initMap() {
+    // Initialize map centered on a default location (can be adjusted)
+    map = L.map('job-map').setView([37.7749, -122.4194], 2); // Default to San Francisco, zoomed out
+
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(map);
+
+    // Load and display job markers
+    loadJobMarkers();
+  }
+
+  async function loadJobMarkers() {
+    // Clear existing markers
+    markers.forEach(marker => map.removeLayer(marker));
+    markers = [];
+
+    if (jobsData.length === 0) {
+      updateJobsCount(0, 0);
+      return;
+    }
+
+    let geocodedCount = 0;
+    const totalJobs = jobsData.length;
+    const jobsToGeocode = jobsData.filter(job => {
+      // Skip jobs without location
+      return job.location && job.location.trim() !== '';
+    });
+
+    updateJobsCount(0, totalJobs);
+
+    // Geocode jobs with delay to respect Nominatim rate limits
+    for (let i = 0; i < jobsToGeocode.length; i++) {
+      const job = jobsToGeocode[i];
+      
+      try {
+        const coords = await geocodeLocation(job.location);
+        
+        if (coords) {
+          const marker = L.marker([coords.lat, coords.lon])
+            .addTo(map)
+            .bindPopup(createPopupContent(job));
+          
+          // Store job data with marker for distance calculations
+          marker.jobData = job;
+          markers.push(marker);
+
+          // Fit map to show all markers
+          if (markers.length === 1) {
+            map.setView([coords.lat, coords.lon], 10);
+          } else {
+            const group = new L.featureGroup(markers);
+            map.fitBounds(group.getBounds().pad(0.1));
+          }
+        }
+
+        geocodedCount++;
+        updateJobsCount(geocodedCount, totalJobs);
+      } catch (error) {
+        console.error('Error geocoding job:', job.title, error);
+        geocodedCount++;
+        updateJobsCount(geocodedCount, totalJobs);
+      }
+
+      // Add delay to respect Nominatim usage policy (1 request per second)
+      if (i < jobsToGeocode.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1100));
+      }
+    }
+  }
+
+  function geocodeLocation(location) {
+    // Use Nominatim API for geocoding (free, no API key required)
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location)}&limit=1`;
+    
+    return fetch(url)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Geocoding request failed');
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data && data.length > 0) {
+          const result = data[0];
+          return {
+            lat: parseFloat(result.lat),
+            lon: parseFloat(result.lon)
+          };
+        }
+        return null;
+      })
+      .catch(error => {
+        console.error('Geocoding error:', error);
+        return null;
+      });
+  }
+
+  function createPopupContent(job) {
+    const skills = job.skills ? job.skills.split(',').slice(0, 3).map(s => s.trim()).join(', ') : 'Not specified';
+    const salary = job.salary_min && job.salary_max 
+      ? `$${job.salary_min.toLocaleString()} - $${job.salary_max.toLocaleString()}`
+      : job.salary_min 
+        ? `$${job.salary_min.toLocaleString()}+`
+        : 'Salary not specified';
+    
+    return `
+      <div class="job-marker-popup">
+        <h6><a href="${job.url}" target="_blank">${job.title}</a></h6>
+        <p class="mb-2"><strong>Location:</strong> ${job.location || 'Not specified'} 
+          ${job.is_remote ? '<span class="badge bg-info text-dark">Remote</span>' : ''}
+        </p>
+        <p class="mb-2"><strong>Salary:</strong> ${salary}</p>
+        <p class="mb-2"><strong>Skills:</strong> ${skills}${job.skills && job.skills.split(',').length > 3 ? '...' : ''}</p>
+        ${userLocation ? calculateDistance(userLocation, job) : ''}
+        <div class="mt-2">
+          <a href="${job.url}" class="btn btn-sm btn-primary">View Details</a>
+        </div>
+      </div>
+    `;
+  }
+
+  function calculateDistance(userLoc, job) {
+    // This will be calculated after geocoding, so we'll update popups later
+    return '';
+  }
+
+  function switchView(view) {
+    const listContainer = document.getElementById('list-container');
+    const mapContainer = document.getElementById('map-container');
+    const listBtn = document.getElementById('list-view-btn');
+    const mapBtn = document.getElementById('map-view-btn');
+
+    if (view === 'map') {
+      listContainer.style.display = 'none';
+      mapContainer.style.display = 'block';
+      listBtn.classList.remove('active');
+      mapBtn.classList.add('active');
+      
+      // Resize map when switching to map view
+      setTimeout(() => {
+        if (map) {
+          map.invalidateSize();
+        }
+      }, 100);
+    } else {
+      listContainer.style.display = 'block';
+      mapContainer.style.display = 'none';
+      listBtn.classList.add('active');
+      mapBtn.classList.remove('active');
+    }
+  }
+
+  function locateUser() {
+    const statusEl = document.getElementById('location-status');
+    statusEl.textContent = 'Locating...';
+
+    if (!navigator.geolocation) {
+      statusEl.textContent = 'Geolocation is not supported by your browser';
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      function(position) {
+        userLocation = {
+          lat: position.coords.latitude,
+          lon: position.coords.longitude
+        };
+
+        // Remove existing user marker
+        if (userMarker) {
+          map.removeLayer(userMarker);
+        }
+
+        // Add user location marker
+        userMarker = L.marker([userLocation.lat, userLocation.lon], {
+          icon: L.divIcon({
+            className: 'user-location-marker',
+            html: '<div style="background-color: #0d6efd; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 0 2px #0d6efd;"></div>',
+            iconSize: [20, 20]
+          })
+        })
+        .addTo(map)
+        .bindPopup('Your Location')
+        .openPopup();
+
+        // Center map on user location
+        map.setView([userLocation.lat, userLocation.lon], 12);
+
+        statusEl.textContent = 'Location found!';
+        statusEl.className = 'ms-2 text-success';
+
+        // Update popups with distances
+        updateMarkersWithDistances();
+      },
+      function(error) {
+        statusEl.textContent = 'Unable to get your location: ' + error.message;
+        statusEl.className = 'ms-2 text-danger';
+      }
+    );
+  }
+
+  function updateMarkersWithDistances() {
+    if (!userLocation) return;
+
+    markers.forEach((marker) => {
+      const latLng = marker.getLatLng();
+      if (latLng && marker.jobData) {
+        const distance = calculateDistanceKm(
+          userLocation.lat,
+          userLocation.lon,
+          latLng.lat,
+          latLng.lng
+        );
+        const distanceText = distance < 1 
+          ? `${Math.round(distance * 1000)}m away`
+          : `${distance.toFixed(1)}km away`;
+        
+        // Update popup with distance
+        marker.setPopupContent(createPopupContentWithDistance(marker.jobData, distanceText));
+      }
+    });
+  }
+
+  function createPopupContentWithDistance(job, distanceText) {
+    const skills = job.skills ? job.skills.split(',').slice(0, 3).map(s => s.trim()).join(', ') : 'Not specified';
+    const salary = job.salary_min && job.salary_max 
+      ? `$${job.salary_min.toLocaleString()} - $${job.salary_max.toLocaleString()}`
+      : job.salary_min 
+        ? `$${job.salary_min.toLocaleString()}+`
+        : 'Salary not specified';
+    
+    return `
+      <div class="job-marker-popup">
+        <h6><a href="${job.url}" target="_blank">${job.title}</a></h6>
+        <p class="mb-2"><strong>Location:</strong> ${job.location || 'Not specified'} 
+          ${job.is_remote ? '<span class="badge bg-info text-dark">Remote</span>' : ''}
+        </p>
+        <p class="mb-2"><strong>Distance:</strong> <span class="text-primary">${distanceText}</span></p>
+        <p class="mb-2"><strong>Salary:</strong> ${salary}</p>
+        <p class="mb-2"><strong>Skills:</strong> ${skills}${job.skills && job.skills.split(',').length > 3 ? '...' : ''}</p>
+        <div class="mt-2">
+          <a href="${job.url}" class="btn btn-sm btn-primary">View Details</a>
+        </div>
+      </div>
+    `;
+  }
+
+  function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Radius of the Earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  function updateJobsCount(geocoded, total) {
+    const countEl = document.getElementById('jobs-count');
+    if (countEl) {
+      countEl.textContent = `Showing ${geocoded} of ${total} jobs`;
+    }
+  }
+</script>
 {% endblock %}
