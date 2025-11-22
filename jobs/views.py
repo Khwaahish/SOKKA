@@ -1,20 +1,22 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
+from django.db.models import Q, Sum, F
 from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
-from django.db import transaction
+from django.db import transaction, models
 from django.core.mail import send_mail
 from django.conf import settings
 from django.core import serializers
+from django.core.paginator import Paginator
+from django.views.decorators.http import require_POST
 import json
 import math
-from .models import Job, JobApplication, EmailCommunication
+from .models import Job, JobApplication, EmailCommunication, SavedCandidateSearch, SearchNotification, JobRecommendation
 from .forms import JobForm, JobApplicationForm, EmailForm
 from profiles.views import recruiter_required, job_seeker_required
 from kanban.models import KanbanBoard, PipelineStage, ProfileCard
-from profiles.models import Profile
+from profiles.models import Profile, ProfileSkill, WorkExperience, Education
 
 
 def calculate_distance_miles(lat1, lon1, lat2, lon2):
@@ -589,3 +591,274 @@ def matched_candidates(request):
     }
     
     return render(request, 'jobs/matched_candidates.html', context)
+
+
+@login_required
+@recruiter_required
+def save_candidate_search(request):
+    """Save a candidate search with current search criteria"""
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        if not name:
+            messages.error(request, 'Please provide a name for this saved search.')
+            return redirect('profiles:profile_list')
+        
+        # Get search criteria from request
+        search_query = request.POST.get('search', '').strip()
+        skills = request.POST.get('skills', '').strip()
+        location = request.POST.get('location', '').strip()
+        min_years_experience = request.POST.get('min_years_experience', '').strip()
+        education_level = request.POST.get('education_level', '').strip()
+        
+        # Create saved search
+        saved_search = SavedCandidateSearch.objects.create(
+            recruiter=request.user,
+            name=name,
+            search_query=search_query,
+            skills=skills,
+            location=location,
+            min_years_experience=int(min_years_experience) if min_years_experience else None,
+            education_level=education_level,
+        )
+        
+        messages.success(request, f'Saved search "{name}" created successfully!')
+        return redirect('jobs:saved_searches')
+    
+    # If GET request, redirect to profile list with current search params
+    return redirect('profiles:profile_list')
+
+
+@login_required
+@recruiter_required
+def saved_searches(request):
+    """List all saved searches for the current recruiter"""
+    saved_searches_list = SavedCandidateSearch.objects.filter(
+        recruiter=request.user
+    ).order_by('-created_at')
+    
+    # Get unread notification counts for each search
+    for search in saved_searches_list:
+        search.unread_count = SearchNotification.objects.filter(
+            saved_search=search,
+            is_read=False
+        ).count()
+    
+    context = {
+        'saved_searches': saved_searches_list,
+    }
+    
+    return render(request, 'jobs/saved_searches.html', context)
+
+
+@login_required
+@recruiter_required
+def saved_search_detail(request, search_id):
+    """View details of a saved search and run it"""
+    saved_search = get_object_or_404(
+        SavedCandidateSearch,
+        id=search_id,
+        recruiter=request.user
+    )
+    
+    # Get search criteria
+    criteria = saved_search.get_search_criteria_dict()
+    
+    # Build query based on criteria
+    profiles = Profile.objects.select_related('user').prefetch_related(
+        'profile_skills__skill', 'privacy_settings'
+    ).filter(
+        Q(privacy_settings__isnull=True) |
+        Q(privacy_settings__profile_visibility__in=['public', 'selective'])
+    )
+    
+    # Apply search filters
+    if criteria.get('search_query'):
+        query = criteria['search_query']
+        profiles = profiles.filter(
+            Q(headline__icontains=query) |
+            Q(bio__icontains=query) |
+            Q(location__icontains=query) |
+            Q(user__first_name__icontains=query) |
+            Q(user__last_name__icontains=query) |
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query) |
+            Q(profile_skills__skill__name__icontains=query)
+        ).distinct()
+    
+    if criteria.get('skills'):
+        for skill in criteria['skills']:
+            profiles = profiles.filter(profile_skills__skill__name__icontains=skill).distinct()
+    
+    if criteria.get('location'):
+        profiles = profiles.filter(location__icontains=criteria['location'])
+    
+    if criteria.get('min_years_experience'):
+        # Calculate years of experience from work experience
+        min_years = criteria['min_years_experience']
+        # This is a simplified check - in production, you'd want more sophisticated logic
+        # For now, we'll filter profiles that have work experience entries
+        # A more sophisticated implementation would calculate actual years
+        profiles = profiles.filter(work_experiences__isnull=False).distinct()
+    
+    # Paginate results
+    paginator = Paginator(profiles, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get notifications for this search
+    notifications = SearchNotification.objects.filter(
+        saved_search=saved_search
+    ).select_related('matched_profile').order_by('-created_at')[:10]
+    
+    context = {
+        'saved_search': saved_search,
+        'page_obj': page_obj,
+        'notifications': notifications,
+        'criteria': criteria,
+    }
+    
+    return render(request, 'jobs/saved_search_detail.html', context)
+
+
+@login_required
+@recruiter_required
+def delete_saved_search(request, search_id):
+    """Delete a saved search"""
+    saved_search = get_object_or_404(
+        SavedCandidateSearch,
+        id=search_id,
+        recruiter=request.user
+    )
+    
+    search_name = saved_search.name
+    saved_search.delete()
+    
+    messages.success(request, f'Saved search "{search_name}" deleted successfully!')
+    return redirect('jobs:saved_searches')
+
+
+@login_required
+@recruiter_required
+def search_notifications(request):
+    """View all search notifications for the current recruiter"""
+    notifications = SearchNotification.objects.filter(
+        saved_search__recruiter=request.user
+    ).select_related(
+        'saved_search', 'matched_profile'
+    ).order_by('-created_at')
+    
+    # Group by saved search
+    notifications_by_search = {}
+    for notification in notifications:
+        search_name = notification.saved_search.name
+        if search_name not in notifications_by_search:
+            notifications_by_search[search_name] = []
+        notifications_by_search[search_name].append(notification)
+    
+    context = {
+        'notifications': notifications,
+        'notifications_by_search': notifications_by_search,
+    }
+    
+    return render(request, 'jobs/search_notifications.html', context)
+
+
+@login_required
+@recruiter_required
+@require_POST
+def mark_notification_read(request, notification_id):
+    """Mark a notification as read"""
+    notification = get_object_or_404(
+        SearchNotification,
+        id=notification_id,
+        saved_search__recruiter=request.user
+    )
+    notification.mark_as_read()
+    return JsonResponse({'status': 'success'})
+
+
+@login_required
+@recruiter_required
+def candidate_recommendations(request, job_id):
+    """Get candidate recommendations for a specific job position"""
+    job = get_object_or_404(Job, id=job_id, posted_by=request.user)
+    
+    # Get or create recommendations
+    recommendations = JobRecommendation.objects.filter(job=job).select_related(
+        'candidate_profile', 'candidate_profile__user'
+    ).order_by('-match_score')
+    
+    # If no recommendations exist, generate them
+    if not recommendations.exists():
+        recommendations = generate_job_recommendations(job)
+    
+    context = {
+        'job': job,
+        'recommendations': recommendations,
+    }
+    
+    return render(request, 'jobs/candidate_recommendations.html', context)
+
+
+def generate_job_recommendations(job):
+    """Generate candidate recommendations for a job"""
+    # Get all job seekers with profiles
+    job_seekers = Profile.objects.filter(
+        user__user_profile__user_type='job_seeker'
+    ).select_related('user').prefetch_related('profile_skills__skill')
+    
+    recommendations = []
+    for job_seeker in job_seekers:
+        # Skip candidates who have already applied
+        if JobApplication.objects.filter(job=job, applicant=job_seeker.user).exists():
+            continue
+        
+        # Calculate match score
+        match_score = job.calculate_skill_match_score(job_seeker)
+        
+        if match_score > 0:
+            # Generate match reason
+            match_reason = generate_match_reason(job, job_seeker, match_score)
+            
+            # Create or update recommendation
+            recommendation, created = JobRecommendation.objects.update_or_create(
+                job=job,
+                candidate_profile=job_seeker,
+                defaults={
+                    'match_score': match_score,
+                    'match_reason': match_reason,
+                }
+            )
+            recommendations.append(recommendation)
+    
+    # Sort by match score
+    recommendations.sort(key=lambda x: x.match_score, reverse=True)
+    
+    # Limit to top 20
+    return recommendations[:20]
+
+
+def generate_match_reason(job, profile, match_score):
+    """Generate a human-readable reason for the match"""
+    reasons = []
+    
+    # Skill match
+    required_skills = job.get_required_skills()
+    if required_skills:
+        profile_skills = [ps.skill.name.lower() for ps in ProfileSkill.objects.filter(profile=profile)]
+        matched_skills = [skill for skill in required_skills if any(skill in ps or ps in skill for ps in profile_skills)]
+        if matched_skills:
+            reasons.append(f"Matches {len(matched_skills)} required skill(s): {', '.join(matched_skills[:3])}")
+    
+    # Experience match
+    if profile.work_experiences.exists():
+        reasons.append("Has relevant work experience")
+    
+    # Education match
+    if profile.educations.exists():
+        reasons.append("Has relevant education")
+    
+    if not reasons:
+        reasons.append("Potential match based on profile")
+    
+    return ". ".join(reasons) + f" (Match score: {match_score}%)"

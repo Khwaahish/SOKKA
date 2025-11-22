@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.http import HttpResponse
 from django.utils import timezone
 import csv
-from .models import Job, JobApplication, EmailCommunication
+from .models import Job, JobApplication, EmailCommunication, SavedCandidateSearch, SearchNotification, JobRecommendation
 
 
 def export_jobs_to_csv(modeladmin, request, queryset):
@@ -219,3 +219,34 @@ class EmailCommunicationAdmin(admin.ModelAdmin):
             return obj.job_application.job.title
         return 'N/A'
     related_job.short_description = "Related Job"
+
+
+@admin.register(SavedCandidateSearch)
+class SavedCandidateSearchAdmin(admin.ModelAdmin):
+    list_display = ("name", "recruiter", "notify_on_new_matches", "notification_frequency", "created_at", "last_checked_at", "notification_count")
+    list_filter = ("notify_on_new_matches", "notification_frequency", "created_at")
+    search_fields = ("name", "search_query", "skills", "location", "recruiter__username", "recruiter__email")
+    ordering = ("-created_at",)
+    readonly_fields = ("created_at", "updated_at", "last_checked_at")
+    
+    def notification_count(self, obj):
+        return obj.notifications.count()
+    notification_count.short_description = "Notifications"
+
+
+@admin.register(SearchNotification)
+class SearchNotificationAdmin(admin.ModelAdmin):
+    list_display = ("saved_search", "matched_profile", "is_read", "created_at")
+    list_filter = ("is_read", "created_at", "saved_search")
+    search_fields = ("saved_search__name", "matched_profile__headline", "matched_profile__user__username")
+    ordering = ("-created_at",)
+    readonly_fields = ("created_at", "read_at")
+
+
+@admin.register(JobRecommendation)
+class JobRecommendationAdmin(admin.ModelAdmin):
+    list_display = ("job", "candidate_profile", "match_score", "is_viewed", "is_contacted", "created_at")
+    list_filter = ("is_viewed", "is_contacted", "created_at", "job")
+    search_fields = ("job__title", "candidate_profile__headline", "candidate_profile__user__username")
+    ordering = ("-match_score", "-created_at")
+    readonly_fields = ("created_at", "updated_at")

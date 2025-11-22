@@ -1,5 +1,5 @@
 from django import forms
-from .models import Job, JobApplication, EmailCommunication
+from .models import Job, JobApplication, EmailCommunication, SavedCandidateSearch
 
 
 class JobForm(forms.ModelForm):
@@ -54,3 +54,42 @@ class EmailForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['subject'].required = True
         self.fields['message'].required = True
+
+
+class SavedSearchForm(forms.ModelForm):
+    class Meta:
+        model = SavedCandidateSearch
+        fields = ['name', 'search_query', 'skills', 'location', 'min_years_experience', 
+                  'education_level', 'notify_on_new_matches', 'notification_frequency']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., Senior Python Developers in NYC'
+            }),
+            'search_query': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'General search terms...'
+            }),
+            'skills': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., Python, Django, React'
+            }),
+            'location': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., New York, NY'
+            }),
+            'min_years_experience': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0
+            }),
+            'education_level': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., Bachelor\'s, Master\'s'
+            }),
+            'notify_on_new_matches': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'notification_frequency': forms.Select(attrs={
+                'class': 'form-select'
+            })
+        }

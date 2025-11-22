@@ -1,0 +1,123 @@
+{% extends "profiles/base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-search"></i> {{ saved_search.name }}</h1>
+  <a href="{% url 'jobs:saved_searches' %}" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Saved Searches
+  </a>
+</div>
+
+<div class="row">
+  <div class="col-lg-9">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0">Search Results</h5>
+      </div>
+      <div class="card-body">
+        {% if page_obj %}
+          <div class="row">
+            {% for profile in page_obj %}
+              <div class="col-md-6 mb-3">
+                <div class="card border">
+                  <div class="card-body">
+                    <h6 class="card-title">
+                      <i class="fas fa-user"></i> {{ profile.get_full_name }}
+                    </h6>
+                    {% if profile.headline %}
+                      <p class="card-text small text-muted">{{ profile.headline }}</p>
+                    {% endif %}
+                    {% if profile.location %}
+                      <p class="card-text small">
+                        <i class="fas fa-map-marker-alt"></i> {{ profile.location }}
+                      </p>
+                    {% endif %}
+                    <a href="{% url 'profiles:public_profile_detail_by_profile' profile.id %}" class="btn btn-sm btn-primary">
+                      <i class="fas fa-eye"></i> View Profile
+                    </a>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+          
+          <!-- Pagination -->
+          {% if page_obj.has_other_pages %}
+            <nav aria-label="Page navigation">
+              <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                  <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                  </li>
+                {% endif %}
+                <li class="page-item active">
+                  <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                {% if page_obj.has_next %}
+                  <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                  </li>
+                {% endif %}
+              </ul>
+            </nav>
+          {% endif %}
+        {% else %}
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> No candidates found matching this search.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h6 class="mb-0">Recent Notifications</h6>
+      </div>
+      <div class="card-body">
+        {% if notifications %}
+          <ul class="list-unstyled">
+            {% for notification in notifications %}
+              <li class="mb-2 pb-2 border-bottom">
+                <small class="text-muted">{{ notification.created_at|date:"M d" }}</small><br>
+                <a href="{% url 'profiles:public_profile_detail_by_profile' notification.matched_profile.id %}">
+                  {{ notification.matched_profile.get_full_name }}
+                </a>
+                {% if not notification.is_read %}
+                  <span class="badge bg-danger">New</span>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted small">No notifications yet.</p>
+        {% endif %}
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <h6 class="mb-0">Search Criteria</h6>
+      </div>
+      <div class="card-body">
+        <ul class="list-unstyled small">
+          {% if criteria.search_query %}
+            <li><strong>Query:</strong> {{ criteria.search_query }}</li>
+          {% endif %}
+          {% if criteria.skills %}
+            <li><strong>Skills:</strong> {{ criteria.skills|join:", " }}</li>
+          {% endif %}
+          {% if criteria.location %}
+            <li><strong>Location:</strong> {{ criteria.location }}</li>
+          {% endif %}
+          {% if criteria.min_years_experience %}
+            <li><strong>Min Experience:</strong> {{ criteria.min_years_experience }} years</li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+

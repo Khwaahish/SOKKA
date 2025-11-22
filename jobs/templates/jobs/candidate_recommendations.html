@@ -1,138 +1,97 @@
 {% extends "profiles/base.html" %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h1><i class="fas fa-lightbulb"></i> Find Candidates</h1>
-  <small class="text-muted">View all your job postings and their candidate recommendations</small>
+  <h1><i class="fas fa-user-check"></i> Candidate Recommendations</h1>
+  <div>
+    <a href="{% url 'jobs:detail' job.id %}" class="btn btn-secondary">
+      <i class="fas fa-arrow-left"></i> Back to Job
+    </a>
+    <a href="{% url 'jobs:matched_candidates' %}" class="btn btn-primary">
+      <i class="fas fa-list"></i> All Recommendations
+    </a>
+  </div>
 </div>
 
-{% if job_recommendations %}
+<div class="card mb-4">
+  <div class="card-header bg-primary text-white">
+    <h5 class="mb-0">
+      <i class="fas fa-briefcase"></i> {{ job.title }}
+    </h5>
+    <small>{{ job.location }} {% if job.is_remote %}<span class="badge bg-light text-dark">Remote</span>{% endif %}</small>
+  </div>
+  <div class="card-body">
+    <p>{{ job.description|truncatewords:30 }}</p>
+    <div>
+      <strong>Required Skills:</strong>
+      <div class="mt-1">
+        {% for skill in job.get_required_skills %}
+          <span class="badge bg-secondary me-1">{{ skill }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if recommendations %}
+  <h5 class="mb-3">Recommended Candidates ({{ recommendations|length }})</h5>
   <div class="row">
-    {% for job_data in job_recommendations %}
+    {% for recommendation in recommendations %}
       <div class="col-lg-6 mb-4">
         <div class="card h-100">
-          <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">
-              <i class="fas fa-briefcase"></i> {{ job_data.job.title }}
-            </h5>
-            <small>{{ job_data.job.location }} {% if job_data.job.is_remote %}<span class="badge bg-light text-dark">Remote</span>{% endif %}</small>
-          </div>
           <div class="card-body">
-            <p class="card-text">{{ job_data.job.description|truncatewords:20 }}</p>
-            <div class="mb-3">
-              <strong>Required Skills:</strong>
-              <div class="mt-1">
-                {% for skill in job_data.job.get_required_skills %}
-                  <span class="badge bg-secondary me-1">{{ skill }}</span>
-                {% endfor %}
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <div class="flex-grow-1">
+                <h6 class="card-title">
+                  <i class="fas fa-user"></i> {{ recommendation.candidate_profile.get_full_name }}
+                </h6>
+                {% if recommendation.candidate_profile.headline %}
+                  <p class="card-text small text-muted">{{ recommendation.candidate_profile.headline }}</p>
+                {% endif %}
+                {% if recommendation.candidate_profile.location %}
+                  <p class="card-text small">
+                    <i class="fas fa-map-marker-alt"></i> {{ recommendation.candidate_profile.location }}
+                  </p>
+                {% endif %}
+              </div>
+              <div class="text-end">
+                <div class="match-score mb-2">
+                  <span class="badge {% if recommendation.match_score >= 80 %}bg-success{% elif recommendation.match_score >= 60 %}bg-warning{% else %}bg-info{% endif %} fs-6">
+                    {{ recommendation.match_score }}% Match
+                  </span>
+                </div>
               </div>
             </div>
             
-            {% if job_data.recommendations %}
-              <h6 class="text-success">
-                <i class="fas fa-users"></i> Top {{ job_data.recommendations|length }} Matched Candidates
-              </h6>
-              
-              <div class="candidate-list">
-                {% for rec in job_data.recommendations %}
-                  <div class="candidate-item border rounded p-3 mb-2">
-                    <div class="d-flex justify-content-between align-items-start">
-                      <div class="flex-grow-1">
-                        <h6 class="mb-1">
-                          <i class="fas fa-user"></i> {{ rec.user.get_full_name|default:rec.user.username }}
-                        </h6>
-                        <p class="mb-1 text-muted small">
-                          <i class="fas fa-envelope"></i> {{ rec.user.email }}
-                        </p>
-                        {% if rec.profile.title %}
-                          <p class="mb-1 small">
-                            <i class="fas fa-briefcase"></i> {{ rec.profile.title }}
-                          </p>
-                        {% endif %}
-                        {% if rec.profile.location %}
-                          <p class="mb-1 small">
-                            <i class="fas fa-map-marker-alt"></i> {{ rec.profile.location }}
-                          </p>
-                        {% endif %}
-                      </div>
-                      <div class="text-end">
-                        <div class="match-score mb-2">
-                          <span class="badge {% if rec.match_score >= 80 %}bg-success{% elif rec.match_score >= 60 %}bg-warning{% else %}bg-info{% endif %} fs-6">
-                            {{ rec.match_score }}% Match
-                          </span>
-                        </div>
-                        <div class="btn-group-vertical btn-group-sm">
-                          <a href="{% url 'profiles:profile_detail' rec.profile.id %}" class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-eye"></i> View Profile
-                          </a>
-                          <a href="{% url 'jobs:send_email_direct' rec.profile.id %}" class="btn btn-outline-success btn-sm">
-                            <i class="fas fa-envelope"></i> Contact
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {% if rec.profile.skills.all %}
-                      <div class="mt-2">
-                        <small class="text-muted">Skills:</small>
-                        <div class="mt-1">
-                          {% for skill in rec.profile.skills.all|slice:":5" %}
-                            <span class="badge bg-light text-dark me-1">{{ skill.name }}</span>
-                          {% endfor %}
-                          {% if rec.profile.skills.count > 5 %}
-                            <span class="text-muted small">+{{ rec.profile.skills.count|add:"-5" }} more</span>
-                          {% endif %}
-                        </div>
-                      </div>
-                    {% endif %}
-                  </div>
-                {% endfor %}
-              </div>
-            {% else %}
-              <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i> No candidate recommendations found for this job yet.
+            {% if recommendation.match_reason %}
+              <div class="mb-3">
+                <strong>Why this candidate:</strong>
+                <p class="small text-muted">{{ recommendation.match_reason }}</p>
               </div>
             {% endif %}
-          </div>
-          <div class="card-footer">
-            <div class="d-flex justify-content-between align-items-center">
-              <small class="text-muted">
-                <i class="fas fa-calendar"></i> Posted {{ job_data.job.created_at|date:"M d, Y" }}
-              </small>
-              <a href="{% url 'jobs:applicants' job_data.job.pk %}" class="btn btn-outline-primary btn-sm">
-                <i class="fas fa-list"></i> View All Applicants
+            
+            <div class="btn-group w-100" role="group">
+              <a href="{% url 'profiles:public_profile_detail_by_profile' recommendation.candidate_profile.id %}" class="btn btn-primary">
+                <i class="fas fa-eye"></i> View Profile
+              </a>
+              <a href="{% url 'jobs:send_email_direct' recommendation.candidate_profile.id %}" class="btn btn-success">
+                <i class="fas fa-envelope"></i> Contact
               </a>
             </div>
+          </div>
+          <div class="card-footer text-muted small">
+            <i class="fas fa-calendar"></i> Recommended {{ recommendation.created_at|date:"M d, Y" }}
           </div>
         </div>
       </div>
     {% endfor %}
   </div>
 {% else %}
-  <div class="text-center py-5">
-    <i class="fas fa-search fa-3x text-muted mb-3"></i>
-    <h4 class="text-muted">No Jobs Posted Yet</h4>
-    <p class="text-muted">
-      You haven't posted any jobs yet. 
-      <a href="{% url 'jobs:create' %}" class="btn btn-primary">Post Your First Job</a>
-    </p>
+  <div class="alert alert-info">
+    <i class="fas fa-info-circle"></i> No candidate recommendations found for this job yet.
   </div>
 {% endif %}
 
 <style>
-.candidate-item {
-  transition: all 0.2s ease;
-}
-
-.candidate-item:hover {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  transform: translateY(-1px);
-}
-
-.match-score .badge {
-  font-size: 0.9rem;
-  padding: 0.5rem 0.75rem;
-}
-
 .card {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   transition: all 0.2s ease;
@@ -140,6 +99,11 @@
 
 .card:hover {
   box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.match-score .badge {
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
 }
 </style>
 

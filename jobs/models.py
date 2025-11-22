@@ -166,3 +166,136 @@ class EmailCommunication(models.Model):
             self.is_read = True
             self.read_at = timezone.now()
             self.save(update_fields=['is_read', 'read_at'])
+
+
+class SavedCandidateSearch(models.Model):
+    """Model to store saved candidate searches for recruiters"""
+    recruiter = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name='saved_searches'
+    )
+    name = models.CharField(max_length=255, help_text="Name for this saved search")
+    
+    # Search criteria
+    search_query = models.CharField(max_length=255, blank=True, help_text="General search query")
+    skills = models.CharField(
+        max_length=512,
+        blank=True,
+        help_text="Comma-separated list of required skills"
+    )
+    location = models.CharField(max_length=255, blank=True)
+    min_years_experience = models.PositiveIntegerField(null=True, blank=True)
+    education_level = models.CharField(max_length=100, blank=True)
+    
+    # Notification settings
+    notify_on_new_matches = models.BooleanField(
+        default=True,
+        help_text="Get notified when new candidates match this search"
+    )
+    notification_frequency = models.CharField(
+        max_length=20,
+        choices=[
+            ('immediate', 'Immediate'),
+            ('daily', 'Daily'),
+            ('weekly', 'Weekly'),
+        ],
+        default='daily'
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_checked_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name_plural = 'Saved Candidate Searches'
+    
+    def __str__(self):
+        return f"{self.name} - {self.recruiter.get_full_name()}"
+    
+    def get_search_criteria_dict(self):
+        """Return search criteria as a dictionary for easy filtering"""
+        criteria = {}
+        if self.search_query:
+            criteria['search_query'] = self.search_query
+        if self.skills:
+            criteria['skills'] = [s.strip() for s in self.skills.split(',') if s.strip()]
+        if self.location:
+            criteria['location'] = self.location
+        if self.min_years_experience:
+            criteria['min_years_experience'] = self.min_years_experience
+        if self.education_level:
+            criteria['education_level'] = self.education_level
+        return criteria
+
+
+class SearchNotification(models.Model):
+    """Model to track notifications for saved searches when new matches are found"""
+    saved_search = models.ForeignKey(
+        SavedCandidateSearch,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+    matched_profile = models.ForeignKey(
+        'profiles.Profile',
+        on_delete=models.CASCADE,
+        related_name='search_notifications'
+    )
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ['saved_search', 'matched_profile']
+    
+    def __str__(self):
+        return f"New match for {self.saved_search.name}: {self.matched_profile.get_full_name()}"
+    
+    def mark_as_read(self):
+        """Mark the notification as read"""
+        if not self.is_read:
+            from django.utils import timezone
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save(update_fields=['is_read', 'read_at'])
+
+
+class JobRecommendation(models.Model):
+    """Model to track candidate recommendations for job positions"""
+    job = models.ForeignKey(
+        Job,
+        on_delete=models.CASCADE,
+        related_name='recommendations'
+    )
+    candidate_profile = models.ForeignKey(
+        'profiles.Profile',
+        on_delete=models.CASCADE,
+        related_name='job_recommendations'
+    )
+    match_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        help_text="Match score between 0 and 100"
+    )
+    match_reason = models.TextField(
+        blank=True,
+        help_text="Explanation of why this candidate was recommended"
+    )
+    is_viewed = models.BooleanField(default=False)
+    is_contacted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-match_score', '-created_at']
+        unique_together = ['job', 'candidate_profile']
+        indexes = [
+            models.Index(fields=['job', '-match_score']),
+            models.Index(fields=['candidate_profile']),
+        ]
+    
+    def __str__(self):
+        return f"{self.candidate_profile.get_full_name()} recommended for {self.job.title} (Score: {self.match_score})"

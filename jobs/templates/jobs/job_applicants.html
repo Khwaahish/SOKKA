@@ -7,6 +7,9 @@
             <h2>Applicants for: {{ job.title }}</h2>
             <div>
                 <span class="badge bg-primary">{{ applicants.count }} Applicant{{ applicants.count|pluralize }}</span>
+                <a href="{% url 'jobs:candidate_recommendations' job.id %}" class="btn btn-success ms-2">
+                    <i class="fas fa-user-check"></i> View Recommendations
+                </a>
             </div>
         </div>
 

@@ -1,0 +1,97 @@
+{% extends "profiles/base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-bell"></i> Search Notifications</h1>
+  <a href="{% url 'jobs:saved_searches' %}" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Saved Searches
+  </a>
+</div>
+
+{% if notifications %}
+  {% for search_name, search_notifications in notifications_by_search.items %}
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="fas fa-search"></i> {{ search_name }}
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="list-group">
+          {% for notification in search_notifications %}
+            <div class="list-group-item {% if not notification.is_read %}bg-light{% endif %}">
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                  <h6 class="mb-1">
+                    <a href="{% url 'profiles:public_profile_detail_by_profile' notification.matched_profile.id %}">
+                      {{ notification.matched_profile.get_full_name }}
+                    </a>
+                    {% if not notification.is_read %}
+                      <span class="badge bg-danger">New</span>
+                    {% endif %}
+                  </h6>
+                  {% if notification.matched_profile.headline %}
+                    <p class="mb-1 small text-muted">{{ notification.matched_profile.headline }}</p>
+                  {% endif %}
+                  {% if notification.matched_profile.location %}
+                    <p class="mb-1 small">
+                      <i class="fas fa-map-marker-alt"></i> {{ notification.matched_profile.location }}
+                    </p>
+                  {% endif %}
+                  <small class="text-muted">
+                    <i class="fas fa-calendar"></i> {{ notification.created_at|date:"M d, Y g:i A" }}
+                  </small>
+                </div>
+                <div class="btn-group-vertical btn-group-sm">
+                  <a href="{% url 'profiles:public_profile_detail_by_profile' notification.matched_profile.id %}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-eye"></i> View
+                  </a>
+                  {% if not notification.is_read %}
+                    <button class="btn btn-outline-success btn-sm mark-read" data-notification-id="{{ notification.id }}">
+                      <i class="fas fa-check"></i> Mark Read
+                    </button>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="text-center py-5">
+    <i class="fas fa-bell fa-3x text-muted mb-3"></i>
+    <h4 class="text-muted">No Notifications</h4>
+    <p class="text-muted">
+      You'll receive notifications when new candidates match your saved searches.
+    </p>
+  </div>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const markReadButtons = document.querySelectorAll('.mark-read');
+  markReadButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const notificationId = this.dataset.notificationId;
+      fetch(`/jobs/notification/${notificationId}/mark-read/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+          'Content-Type': 'application/json',
+        },
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          this.closest('.list-group-item').classList.remove('bg-light');
+          this.remove();
+        }
+      });
+    });
+  });
+});
+</script>
+
+{% endblock %}
+
