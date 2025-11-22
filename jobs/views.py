@@ -302,6 +302,9 @@ def job_create(request):
         if form.is_valid():
             job = form.save(commit=False)
             job.posted_by = request.user
+            # Set latitude and longitude from form
+            job.latitude = form.cleaned_data.get('latitude')
+            job.longitude = form.cleaned_data.get('longitude')
             job.save()
             messages.success(request, "Job posted successfully!")
             return redirect("jobs:detail", pk=job.pk)
@@ -321,11 +324,19 @@ def job_edit(request, pk):
     if request.method == "POST":
         form = JobForm(request.POST, instance=job)
         if form.is_valid():
-            form.save()
+            job = form.save(commit=False)
+            # Update latitude and longitude from form
+            job.latitude = form.cleaned_data.get('latitude')
+            job.longitude = form.cleaned_data.get('longitude')
+            job.save()
             messages.success(request, "Job updated successfully!")
             return redirect("jobs:detail", pk=job.pk)
     else:
         form = JobForm(instance=job)
+        # Pre-populate latitude/longitude if they exist
+        if job.latitude and job.longitude:
+            form.fields['latitude'].initial = job.latitude
+            form.fields['longitude'].initial = job.longitude
     return render(request, "jobs/job_form.html", {"form": form, "job": job})
 
 

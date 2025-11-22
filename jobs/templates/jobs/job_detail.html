@@ -1,6 +1,31 @@
 {% extends "profiles/base.html" %}
-{% block content %}
 {% load job_extras %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  #job-location-map {
+    width: 100%;
+    height: 350px;
+    border-radius: 8px;
+    border: 2px solid #dee2e6;
+    margin-top: 15px;
+  }
+  
+  .map-section {
+    margin: 20px 0;
+  }
+  
+  .location-info {
+    background-color: #f8f9fa;
+    padding: 12px;
+    border-radius: 4px;
+    margin-top: 10px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
 <div class="card section-card">
   <div class="card-body">
     <div class="d-flex justify-content-between">
@@ -13,7 +38,17 @@
     </div>
 
     <p><strong>Location:</strong> {{ job.location }} {% if job.is_remote %}<span class="badge bg-info text-dark">Remote</span>{% endif %}</p>
-    <p><strong>Salary:</strong> {{ job.salary_min }} - {{ job.salary_max }}</p>
+    <p><strong>Salary:</strong> 
+      {% if job.salary_min and job.salary_max %}
+        ${{ job.salary_min|floatformat:0 }} - ${{ job.salary_max|floatformat:0 }}
+      {% elif job.salary_min %}
+        ${{ job.salary_min|floatformat:0 }}+
+      {% elif job.salary_max %}
+        Up to ${{ job.salary_max|floatformat:0 }}
+      {% else %}
+        Not specified
+      {% endif %}
+    </p>
     <p><strong>Skills:</strong>
       {% for s in job.skills|split:',' %}
         <span class="skill-badge">{{ s|trim }}</span>
@@ -24,6 +59,25 @@
 
     <hr>
     <div>{{ job.description|linebreaks }}</div>
+
+    <!-- Location Map Section -->
+    {% if not job.is_remote and job.latitude and job.longitude %}
+    <div class="map-section">
+      <h4 class="mb-3">
+        <i class="fas fa-map-marker-alt"></i> Office Location
+      </h4>
+      <div class="location-info">
+        <i class="fas fa-info-circle"></i> 
+        <strong>Exact Location:</strong> This map shows the precise office location for this job posting.
+      </div>
+      <div id="job-location-map"></div>
+    </div>
+    {% elif not job.is_remote %}
+    <div class="alert alert-warning mt-3">
+      <i class="fas fa-exclamation-triangle"></i> 
+      Location map is not available for this job posting.
+    </div>
+    {% endif %}
 
     {% if user.is_authenticated %}
       {% if has_applied %}
@@ -46,5 +100,47 @@
     {% endif %}
   </div>
 </div>
+
+{% if not job.is_remote and job.latitude and job.longitude %}
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var jobLat = parseFloat('{{ job.latitude }}');
+    var jobLon = parseFloat('{{ job.longitude }}');
+    var jobTitle = '{{ job.title|escapejs }}';
+    var jobLocation = '{{ job.location|default:""|escapejs }}';
+    
+    // Initialize map
+    var map = L.map('job-location-map').setView([jobLat, jobLon], 13);
+    
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(map);
+    
+    // Add marker for job location
+    var marker = L.marker([jobLat, jobLon], {
+      icon: L.divIcon({
+        className: 'job-location-marker',
+        html: '<div style="background-color: #dc3545; width: 28px; height: 28px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.4);"></div>',
+        iconSize: [28, 28]
+      })
+    }).addTo(map);
+    
+    // Create popup content
+    var popupContent = '<div style="min-width: 200px;">' +
+      '<h6 style="margin: 0 0 8px 0; font-weight: 600;">' + jobTitle + '</h6>' +
+      '<p style="margin: 0; color: #666;">' +
+      '<i class="fas fa-map-marker-alt"></i> ' + (jobLocation || 'Office Location') +
+      '</p>' +
+      '</div>';
+    
+    marker.bindPopup(popupContent).openPopup();
+  });
+</script>
+{% endblock %}
+{% endif %}
 
 {% endblock %}

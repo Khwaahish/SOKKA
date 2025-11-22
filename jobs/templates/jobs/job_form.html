@@ -1,14 +1,550 @@
 {% extends "profiles/base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  #location-map {
+    width: 100%;
+    height: 400px;
+    border-radius: 8px;
+    border: 2px solid #dee2e6;
+    margin-top: 10px;
+  }
+  
+  .map-container {
+    margin: 20px 0;
+  }
+  
+  .map-instructions {
+    background-color: #e7f3ff;
+    border-left: 4px solid #0d6efd;
+    padding: 12px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+  }
+  
+  .location-marker-info {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+    font-size: 0.9em;
+  }
+  
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+  
+  .form-group label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+  
+  .required-field::after {
+    content: " *";
+    color: #dc3545;
+  }
+  
+  .remote-toggle-section {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+  }
+  
+  .form-group input[type="text"],
+  .form-group input[type="number"],
+  .form-group textarea,
+  .form-group select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 1rem;
+  }
+  
+  .form-group input[type="text"]:focus,
+  .form-group input[type="number"]:focus,
+  .form-group textarea:focus,
+  .form-group select:focus {
+    border-color: #0d6efd;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="card section-card">
   <div class="card-body">
     <h2 class="card-title">{% if job %}Edit Job{% else %}Post a Job{% endif %}</h2>
-    <form method="post">
+    
+    <form method="post" id="job-form">
       {% csrf_token %}
-      {{ form.as_p }}
-      <button type="submit" class="btn btn-primary">Save</button>
+      
+      <!-- Basic Job Information -->
+      <div class="form-group">
+        <label for="{{ form.title.id_for_label }}" class="required-field">Job Title</label>
+        {{ form.title }}
+        {% if form.title.errors %}
+          <div class="text-danger small">{{ form.title.errors }}</div>
+        {% endif %}
+      </div>
+      
+      <div class="form-group">
+        <label for="{{ form.description.id_for_label }}" class="required-field">Job Description</label>
+        {{ form.description }}
+        {% if form.description.errors %}
+          <div class="text-danger small">{{ form.description.errors }}</div>
+        {% endif %}
+      </div>
+      
+      <div class="form-group">
+        <label for="{{ form.skills.id_for_label }}">Required Skills</label>
+        {{ form.skills }}
+        <small class="form-text text-muted">Comma-separated list (e.g., Python, Django, React)</small>
+        {% if form.skills.errors %}
+          <div class="text-danger small">{{ form.skills.errors }}</div>
+        {% endif %}
+      </div>
+      
+      <!-- Remote Toggle -->
+      <div class="remote-toggle-section">
+        <div class="form-check">
+          {{ form.is_remote }}
+          <label class="form-check-label" for="{{ form.is_remote.id_for_label }}">
+            This is a remote position
+          </label>
+        </div>
+        <small class="form-text text-muted">If checked, location pinning is optional</small>
+      </div>
+      
+      <!-- Location Pinning Section -->
+      <div class="map-container" id="location-section">
+        <h4 class="mb-3">
+          <i class="fas fa-map-marker-alt"></i> Office Location
+        </h4>
+        
+        <div class="map-instructions">
+          <strong><i class="fas fa-info-circle"></i> Instructions:</strong>
+          <ul class="mb-0 mt-2">
+            <li>Click on the map to pin your office location</li>
+            <li>You can drag the marker to adjust the position</li>
+            <li>Use the "Use My Current Location" button to quickly set your location</li>
+            <li><strong>Location pinning is required for non-remote jobs</strong></li>
+          </ul>
+        </div>
+        
+        <!-- Location Name Field -->
+        <div class="form-group">
+          <label for="{{ form.location.id_for_label }}">Location Name</label>
+          {{ form.location }}
+          <small class="form-text text-muted">This will be auto-filled when you pin a location, or you can type it manually</small>
+          {% if form.location.errors %}
+            <div class="text-danger small">{{ form.location.errors }}</div>
+          {% endif %}
+        </div>
+        
+        <!-- Map -->
+        <div id="location-map" 
+             {% if form.latitude.value and form.longitude.value %}
+             data-initial-lat="{{ form.latitude.value }}"
+             data-initial-lon="{{ form.longitude.value }}"
+             {% endif %}></div>
+        
+        <!-- Location Status -->
+        <div class="location-marker-info" id="location-status">
+          <i class="fas fa-map-pin"></i> 
+          <span id="location-status-text">Click on the map to set the office location</span>
+        </div>
+        
+        <!-- Use Current Location Button -->
+        <button type="button" class="btn btn-outline-primary mt-2" id="locate-btn">
+          <i class="fas fa-crosshairs"></i> Use My Current Location
+        </button>
+        
+        <!-- Hidden fields for coordinates -->
+        {{ form.latitude }}
+        {{ form.longitude }}
+        
+        {% if form.latitude.errors or form.longitude.errors %}
+          <div class="text-danger small mt-2">
+            {% if form.latitude.errors %}{{ form.latitude.errors }}{% endif %}
+            {% if form.longitude.errors %}{{ form.longitude.errors }}{% endif %}
+          </div>
+        {% endif %}
+      </div>
+      
+      <!-- Salary Information -->
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="{{ form.salary_min.id_for_label }}">Minimum Salary</label>
+            {{ form.salary_min }}
+            {% if form.salary_min.errors %}
+              <div class="text-danger small">{{ form.salary_min.errors }}</div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="{{ form.salary_max.id_for_label }}">Maximum Salary</label>
+            {{ form.salary_max }}
+            {% if form.salary_max.errors %}
+              <div class="text-danger small">{{ form.salary_max.errors }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      
+      <!-- Additional Options -->
+      <div class="form-group">
+        <div class="form-check">
+          {{ form.visa_sponsorship }}
+          <label class="form-check-label" for="{{ form.visa_sponsorship.id_for_label }}">
+            Visa Sponsorship Available
+          </label>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <div class="form-check">
+          {{ form.is_active }}
+          <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+            Job is Active (visible to candidates)
+          </label>
+        </div>
+      </div>
+      
+      <!-- Form Errors -->
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+          {{ form.non_field_errors }}
+        </div>
+      {% endif %}
+      
+      <!-- Submit Buttons -->
+      <div class="mt-4">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save"></i> {% if job %}Update Job{% else %}Post Job{% endif %}
+        </button>
       <a href="{% url 'jobs:list' %}" class="btn btn-secondary ms-2">Cancel</a>
+      </div>
     </form>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+var map;
+var locationMarker = null;
+var currentLat = null;
+var currentLon = null;
+
+// Get initial values from form or use defaults
+var isRemoteField = document.getElementById('{{ form.is_remote.id_for_label }}');
+var locationSection = document.getElementById('location-section');
+var locationField = document.getElementById('{{ form.location.id_for_label }}');
+var latitudeField = document.getElementById('{{ form.latitude.id_for_label }}');
+var longitudeField = document.getElementById('{{ form.longitude.id_for_label }}');
+var locationStatusText = document.getElementById('location-status-text');
+var mapContainer = document.getElementById('location-map');
+
+// Get initial coordinates from data attributes
+if (mapContainer) {
+  var initialLat = mapContainer.getAttribute('data-initial-lat');
+  var initialLon = mapContainer.getAttribute('data-initial-lon');
+  if (initialLat && initialLon) {
+    currentLat = parseFloat(initialLat);
+    currentLon = parseFloat(initialLon);
+  }
+}
+
+// Initialize map when page loads
+document.addEventListener('DOMContentLoaded', function() {
+  initMap();
+  
+  // Handle remote toggle
+  if (isRemoteField) {
+    isRemoteField.addEventListener('change', function() {
+      updateLocationSectionVisibility();
+    });
+    updateLocationSectionVisibility();
+  }
+});
+
+function initMap() {
+  // Default center (San Francisco) or use saved location
+  const defaultLat = currentLat || 37.7749;
+  const defaultLon = currentLon || -122.4194;
+  const defaultZoom = currentLat ? 12 : 2;
+
+  map = L.map('location-map').setView([defaultLat, defaultLon], defaultZoom);
+
+  // Add OpenStreetMap tiles
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+  // If user has saved location, show it
+  if (currentLat && currentLon) {
+    setLocation(currentLat, currentLon, false);
+  }
+
+  // Handle map clicks
+  map.on('click', function(e) {
+    setLocation(e.latlng.lat, e.latlng.lng, true);
+  });
+}
+
+function setLocation(lat, lon, updateForm = true) {
+  // Round to 7 decimal places to match form validation (max_digits=10, decimal_places=7)
+  currentLat = Math.round(lat * 10000000) / 10000000;
+  currentLon = Math.round(lon * 10000000) / 10000000;
+
+  // Update hidden form fields with properly rounded values
+  if (updateForm && latitudeField && longitudeField) {
+    latitudeField.value = currentLat.toFixed(7);
+    longitudeField.value = currentLon.toFixed(7);
+  }
+
+  // Remove existing marker
+  if (locationMarker) {
+    map.removeLayer(locationMarker);
+  }
+
+  // Add new marker using rounded coordinates
+  locationMarker = L.marker([currentLat, currentLon], {
+    draggable: true,
+    icon: L.divIcon({
+      className: 'user-location-marker',
+      html: '<div style="background-color: #dc3545; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>',
+      iconSize: [24, 24]
+    })
+  })
+  .addTo(map)
+  .bindPopup('Office Location')
+  .openPopup();
+
+  // Handle marker drag
+  locationMarker.on('dragend', function(e) {
+    const position = e.target.getLatLng();
+    setLocation(position.lat, position.lng, true);
+  });
+
+  // Center map on location
+  map.setView([currentLat, currentLon], 12);
+
+  // Update status
+  if (locationStatusText) {
+    locationStatusText.textContent = `Location pinned at: ${currentLat.toFixed(7)}, ${currentLon.toFixed(7)}`;
+    locationStatusText.parentElement.style.backgroundColor = '#d4edda';
+    locationStatusText.parentElement.style.borderLeft = '4px solid #28a745';
+  }
+
+  // Try to reverse geocode for location name
+  reverseGeocode(currentLat, currentLon);
+}
+
+function reverseGeocode(lat, lon) {
+  // Use Nominatim API for reverse geocoding
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
+  
+  fetch(url)
+    .then(response => response.json())
+    .then(data => {
+      if (data && data.address) {
+        const address = data.address;
+        let locationName = '';
+        
+        // Try to build a friendly location name
+        if (address.city) {
+          locationName = address.city;
+          if (address.state) {
+            locationName += ', ' + address.state;
+          } else if (address.country) {
+            locationName += ', ' + address.country;
+          }
+        } else if (address.town) {
+          locationName = address.town;
+          if (address.state) {
+            locationName += ', ' + address.state;
+          }
+        } else if (address.village) {
+          locationName = address.village;
+        } else if (address.country) {
+          locationName = address.country;
+        }
+        
+        if (locationName && locationField) {
+          // Only auto-fill if field is empty or user hasn't manually typed something
+          if (!locationField.value || locationField.dataset.autoFilled === 'true') {
+            locationField.value = locationName;
+            locationField.dataset.autoFilled = 'true';
+          }
+        }
+      }
+    })
+    .catch(error => {
+      console.error('Reverse geocoding error:', error);
+    });
+}
+
+function locateUser() {
+  const statusEl = document.getElementById('location-status-text');
+  statusEl.textContent = 'Locating...';
+
+  if (!navigator.geolocation) {
+    statusEl.textContent = 'Geolocation is not supported by your browser';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    function(position) {
+      setLocation(position.coords.latitude, position.coords.longitude, true);
+      statusEl.textContent = 'Location found!';
+    },
+    function(error) {
+      statusEl.textContent = 'Unable to get your location: ' + error.message;
+      statusEl.parentElement.style.backgroundColor = '#f8d7da';
+      statusEl.parentElement.style.borderLeft = '4px solid #dc3545';
+    }
+  );
+}
+
+function updateLocationSectionVisibility() {
+  if (isRemoteField.checked) {
+    locationSection.style.opacity = '0.6';
+    locationSection.style.pointerEvents = 'none';
+  } else {
+    locationSection.style.opacity = '1';
+    locationSection.style.pointerEvents = 'auto';
+  }
+}
+
+// Function to geocode location name and set map location
+function geocodeLocationName(locationName) {
+  if (!locationName || !locationName.trim()) {
+    return;
+  }
+  
+  const statusEl = document.getElementById('location-status-text');
+  if (statusEl) {
+    statusEl.textContent = 'Searching for location...';
+  }
+  
+  // Use Nominatim API for geocoding
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationName)}&limit=1`;
+  
+  fetch(url)
+    .then(response => response.json())
+    .then(data => {
+      if (data && data.length > 0) {
+        const result = data[0];
+        const lat = parseFloat(result.lat);
+        const lon = parseFloat(result.lon);
+        setLocation(lat, lon, true);
+        if (statusEl) {
+          statusEl.textContent = 'Location found and pinned!';
+        }
+      } else {
+        if (statusEl) {
+          statusEl.textContent = 'Location not found. Please try a different search term or click on the map.';
+          statusEl.parentElement.style.backgroundColor = '#fff3cd';
+          statusEl.parentElement.style.borderLeft = '4px solid #ffc107';
+        }
+      }
+    })
+    .catch(error => {
+      console.error('Geocoding error:', error);
+      if (statusEl) {
+        statusEl.textContent = 'Error searching location. Please click on the map to set location.';
+        statusEl.parentElement.style.backgroundColor = '#f8d7da';
+        statusEl.parentElement.style.borderLeft = '4px solid #dc3545';
+      }
+    });
+}
+
+// Attach locate button
+document.getElementById('locate-btn').addEventListener('click', locateUser);
+
+// Add geocoding when location field loses focus (user finishes typing)
+if (locationField) {
+  let geocodeTimeout;
+  locationField.addEventListener('input', function() {
+    // Clear auto-filled flag when user types
+    this.dataset.autoFilled = 'false';
+    
+    // Clear any existing timeout
+    clearTimeout(geocodeTimeout);
+    
+    // Wait for user to stop typing (500ms delay)
+    geocodeTimeout = setTimeout(function() {
+      const locationName = locationField.value.trim();
+      if (locationName && locationName.length > 2) {
+        geocodeLocationName(locationName);
+      }
+    }, 500);
+  });
+  
+  // Also add a search button next to the location field
+  const locationGroup = locationField.closest('.form-group');
+  if (locationGroup) {
+    const searchBtn = document.createElement('button');
+    searchBtn.type = 'button';
+    searchBtn.className = 'btn btn-sm btn-outline-primary mt-2';
+    searchBtn.innerHTML = '<i class="fas fa-search"></i> Search & Pin Location';
+    searchBtn.onclick = function() {
+      const locationName = locationField.value.trim();
+      if (locationName) {
+        geocodeLocationName(locationName);
+      } else {
+        alert('Please enter a location name first.');
+      }
+    };
+    locationGroup.appendChild(searchBtn);
+  }
+}
+
+// Form validation before submission
+document.getElementById('job-form').addEventListener('submit', function(e) {
+  const isRemote = isRemoteField ? isRemoteField.checked : false;
+  const lat = latitudeField ? latitudeField.value : null;
+  const lon = longitudeField ? longitudeField.value : null;
+  
+  // Check if coordinates are valid numbers
+  const hasValidCoords = lat && lon && !isNaN(parseFloat(lat)) && !isNaN(parseFloat(lon));
+  
+  if (!isRemote && !hasValidCoords) {
+    e.preventDefault();
+    alert('Please pin the office location on the map. This is required for non-remote jobs.');
+    
+    // Scroll to map
+    if (locationSection) {
+      locationSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      
+      // Highlight the map section
+      locationSection.style.border = '2px solid #dc3545';
+      setTimeout(() => {
+        locationSection.style.border = 'none';
+      }, 3000);
+    }
+    
+    return false;
+  }
+  
+  // Ensure coordinates are properly formatted before submission
+  if (hasValidCoords && latitudeField && longitudeField) {
+    const latNum = parseFloat(lat);
+    const lonNum = parseFloat(lon);
+    latitudeField.value = latNum.toFixed(7);
+    longitudeField.value = lonNum.toFixed(7);
+  }
+});
+</script>
 {% endblock %}

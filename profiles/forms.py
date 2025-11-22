@@ -43,10 +43,22 @@ class ProfileForm(forms.ModelForm):
     first_name = forms.CharField(max_length=30, required=True)
     last_name = forms.CharField(max_length=30, required=True)
     email = forms.EmailField(required=True)
+    latitude = forms.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        required=False,
+        widget=forms.HiddenInput()
+    )
+    longitude = forms.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        required=False,
+        widget=forms.HiddenInput()
+    )
     
     class Meta:
         model = Profile
-        fields = ['headline', 'bio', 'location', 'phone', 'profile_picture']
+        fields = ['headline', 'bio', 'location', 'latitude', 'longitude', 'phone', 'profile_picture']
         widgets = {
             'bio': forms.Textarea(attrs={'rows': 4, 'cols': 40}),
             'headline': forms.TextInput(attrs={'placeholder': 'e.g., Software Engineer, Marketing Manager'}),
@@ -70,6 +82,10 @@ class ProfileForm(forms.ModelForm):
     
     def save(self, commit=True):
         profile = super().save(commit=False)
+        # Set latitude and longitude from form
+        profile.latitude = self.cleaned_data.get('latitude')
+        profile.longitude = self.cleaned_data.get('longitude')
+        
         if self.user:
             profile.user = self.user
             if commit:
@@ -257,15 +273,15 @@ class ProfilePrivacySettingsForm(forms.ModelForm):
 class CommuteRadiusSettingsForm(forms.Form):
     """Form for setting commute radius and location on a map"""
     latitude = forms.DecimalField(
-        max_digits=9,
-        decimal_places=6,
+        max_digits=10,
+        decimal_places=7,
         required=True,
         widget=forms.HiddenInput(),
         help_text="Latitude of your preferred location"
     )
     longitude = forms.DecimalField(
-        max_digits=9,
-        decimal_places=6,
+        max_digits=10,
+        decimal_places=7,
         required=True,
         widget=forms.HiddenInput(),
         help_text="Longitude of your preferred location"

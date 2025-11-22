@@ -2,19 +2,56 @@
 
 {% block title %}Browse Profiles - SOKKA{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<style>
+  #candidates-map {
+    width: 100%;
+    height: 600px;
+    border-radius: 8px;
+    border: 2px solid #dee2e6;
+    margin-top: 15px;
+  }
+  
+  #map-container {
+    display: none;
+  }
+  
+  .view-toggle-btn.active {
+    background-color: #0d6efd;
+    color: white;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-search"></i> Browse Profiles</h2>
-    {% if user.is_authenticated %}
-        <a href="{% url 'profiles:profile_detail' %}" class="btn btn-primary">
-            <i class="fas fa-user"></i> My Profile
-        </a>
-    {% else %}
-        {# Allow anonymous users to create profiles (stored in session) #}
-        <a href="{% url 'profiles:create_profile' %}" class="btn btn-outline-primary">
-            <i class="fas fa-user-plus"></i> Create Profile
-        </a>
-    {% endif %}
+    <h2><i class="fas fa-search"></i> Browse Candidates</h2>
+    <div class="d-flex gap-2">
+        <!-- View Toggle Buttons -->
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-primary view-toggle-btn {% if view_mode == 'list' %}active{% endif %}" 
+                    onclick="switchView('list')" id="list-view-btn">
+                <i class="fas fa-list"></i> List View
+            </button>
+            <button type="button" class="btn btn-outline-primary view-toggle-btn {% if view_mode == 'map' %}active{% endif %}" 
+                    onclick="switchView('map')" id="map-view-btn">
+                <i class="fas fa-map"></i> Map View
+            </button>
+        </div>
+        {% if user.is_authenticated %}
+            <a href="{% url 'profiles:profile_detail' %}" class="btn btn-primary">
+                <i class="fas fa-user"></i> My Profile
+            </a>
+        {% else %}
+            {# Allow anonymous users to create profiles (stored in session) #}
+            <a href="{% url 'profiles:create_profile' %}" class="btn btn-outline-primary">
+                <i class="fas fa-user-plus"></i> Create Profile
+            </a>
+        {% endif %}
+    </div>
 </div>
 
 <!-- Search Form -->
@@ -82,6 +119,21 @@
 </div>
 {% endif %}
 
+<!-- Map View -->
+<div id="map-container">
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">
+                <i class="fas fa-map-marker-alt"></i> Candidates by Location
+            </h5>
+            <p class="text-muted">View all candidates on an interactive map. Clusters show multiple candidates in the same area.</p>
+            <div id="candidates-map"></div>
+        </div>
+    </div>
+</div>
+
+<!-- List View -->
+<div id="list-container">
 <!-- Profiles Grid -->
 {% if page_obj %}
     <div class="row">
@@ -223,11 +275,28 @@
         {% endif %}
     </div>
 {% endif %}
+</div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
+var map;
+var markers;
+var markerClusterGroup;
+var profilesData = {{ profiles_json|safe }};
+var currentViewMode = '{{ view_mode }}';
+
+// Initialize view based on current mode
 document.addEventListener('DOMContentLoaded', function() {
+    // Set initial view
+    if (currentViewMode === 'map') {
+        switchView('map');
+    } else {
+        switchView('list');
+    }
+    
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -255,6 +324,122 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+function switchView(view) {
+    const listContainer = document.getElementById('list-container');
+    const mapContainer = document.getElementById('map-container');
+    const listBtn = document.getElementById('list-view-btn');
+    const mapBtn = document.getElementById('map-view-btn');
+    
+    // Update URL without page reload
+    const url = new URL(window.location);
+    url.searchParams.set('view', view);
+    window.history.pushState({}, '', url);
+    
+    if (view === 'map') {
+        listContainer.style.display = 'none';
+        mapContainer.style.display = 'block';
+        listBtn.classList.remove('active');
+        mapBtn.classList.add('active');
+        
+        // Initialize map if not already initialized
+        if (!map) {
+            initMap();
+        } else {
+            // Resize map when switching to map view
+            setTimeout(function() {
+                map.invalidateSize();
+            }, 100);
+        }
+    } else {
+        listContainer.style.display = 'block';
+        mapContainer.style.display = 'none';
+        listBtn.classList.add('active');
+        mapBtn.classList.remove('active');
+    }
+}
+
+function initMap() {
+    // Initialize map centered on a default location
+    map = L.map('candidates-map').setView([37.7749, -122.4194], 2);
+    
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(map);
+    
+    // Create marker cluster group
+    markerClusterGroup = L.markerClusterGroup({
+        maxClusterRadius: 50,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true
+    });
+    
+    // Add markers for profiles with coordinates
+    markers = [];
+    const profilesWithCoords = profilesData.filter(profile => 
+        profile.latitude && profile.longitude
+    );
+    
+    if (profilesWithCoords.length === 0) {
+        // Show message if no profiles with coordinates
+        const noDataDiv = document.createElement('div');
+        noDataDiv.className = 'alert alert-info';
+        noDataDiv.innerHTML = '<i class="fas fa-info-circle"></i> No candidates with location data available. Candidates need to set their location to appear on the map.';
+        document.getElementById('candidates-map').parentElement.insertBefore(noDataDiv, document.getElementById('candidates-map'));
+        return;
+    }
+    
+    profilesWithCoords.forEach(function(profile) {
+        const marker = L.marker([profile.latitude, profile.longitude], {
+            icon: L.divIcon({
+                className: 'candidate-marker',
+                html: '<div style="background-color: #28a745; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>',
+                iconSize: [20, 20]
+            })
+        });
+        
+        // Create popup content
+        const popupContent = `
+            <div style="min-width: 200px;">
+                <h6 style="margin: 0 0 8px 0; font-weight: 600;">${escapeHtml(profile.name)}</h6>
+                <p style="margin: 0 0 4px 0; color: #666; font-size: 0.9em;">
+                    <strong>${escapeHtml(profile.headline)}</strong>
+                </p>
+                ${profile.location ? `<p style="margin: 0 0 4px 0; color: #666; font-size: 0.85em;">
+                    <i class="fas fa-map-marker-alt"></i> ${escapeHtml(profile.location)}
+                </p>` : ''}
+                ${profile.bio ? `<p style="margin: 8px 0 0 0; color: #666; font-size: 0.85em;">
+                    ${escapeHtml(profile.bio)}
+                </p>` : ''}
+                <div style="margin-top: 10px;">
+                    ${profile.url ? '<a href="/profiles/view/' + profile.url + '/" class="btn btn-sm btn-primary" target="_blank">View Profile</a>' : ''}
+                </div>
+            </div>
+        `;
+        
+        marker.bindPopup(popupContent);
+        markers.push(marker);
+        markerClusterGroup.addLayer(marker);
+    });
+    
+    // Add cluster group to map
+    map.addLayer(markerClusterGroup);
+    
+    // Fit map to show all markers
+    if (profilesWithCoords.length > 0) {
+        const group = new L.featureGroup(markers);
+        map.fitBounds(group.getBounds().pad(0.1));
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 </script>
 {% endblock %}
 

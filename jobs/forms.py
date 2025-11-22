@@ -3,6 +3,19 @@ from .models import Job, JobApplication, EmailCommunication, SavedCandidateSearc
 
 
 class JobForm(forms.ModelForm):
+    latitude = forms.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        required=False,
+        widget=forms.HiddenInput()
+    )
+    longitude = forms.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        required=False,
+        widget=forms.HiddenInput()
+    )
+    
     class Meta:
         model = Job
         fields = [
@@ -10,6 +23,8 @@ class JobForm(forms.ModelForm):
             "description",
             "skills",
             "location",
+            "latitude",
+            "longitude",
             "salary_min",
             "salary_max",
             "is_remote",
@@ -20,6 +35,27 @@ class JobForm(forms.ModelForm):
             "description": forms.Textarea(attrs={"rows": 6}),
             "skills": forms.TextInput(attrs={"placeholder": "e.g. Python, Django, React"}),
         }
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        is_remote = cleaned_data.get('is_remote', False)
+        latitude = cleaned_data.get('latitude')
+        longitude = cleaned_data.get('longitude')
+        
+        # If job is not remote, require location coordinates
+        if not is_remote:
+            if not latitude or not longitude:
+                raise forms.ValidationError(
+                    "Please pin the office location on the map. This is required for non-remote jobs."
+                )
+        
+        return cleaned_data
+    
+    def save(self, commit=True):
+        job = super().save(commit=False)
+        if commit:
+            job.save()
+        return job
 
 
 class JobApplicationForm(forms.ModelForm):

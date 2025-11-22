@@ -13,8 +13,8 @@ class Job(models.Model):
         blank=True,
     )
     location = models.CharField(max_length=255, blank=True)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, help_text="Latitude for location-based filtering")
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, help_text="Longitude for location-based filtering")
+    latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True, help_text="Latitude for location-based filtering")
+    longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True, help_text="Longitude for location-based filtering")
     salary_min = models.PositiveIntegerField(null=True, blank=True)
     salary_max = models.PositiveIntegerField(null=True, blank=True)
     is_remote = models.BooleanField(default=False)

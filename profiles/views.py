@@ -295,11 +295,19 @@ def edit_profile(request):
     if request.method == 'POST':
         form = ProfileForm(request.POST, request.FILES, instance=profile, user=request.user if request.user.is_authenticated else None)
         if form.is_valid():
-            form.save()
+            profile = form.save(commit=False)
+            # Update latitude and longitude from form
+            profile.latitude = form.cleaned_data.get('latitude')
+            profile.longitude = form.cleaned_data.get('longitude')
+            profile.save()
             messages.success(request, 'Profile updated successfully!')
             return redirect('profiles:profile_detail')
     else:
         form = ProfileForm(instance=profile, user=request.user if request.user.is_authenticated else None)
+        # Pre-populate latitude/longitude if they exist
+        if profile.latitude and profile.longitude:
+            form.fields['latitude'].initial = profile.latitude
+            form.fields['longitude'].initial = profile.longitude
     
     return render(request, 'profiles/profile_form.html', {'form': form, 'title': 'Edit Profile'})
 
@@ -526,6 +534,8 @@ def search_skills(request):
 @recruiter_required
 def profile_list(request):
     """List all public profiles (for recruiters to browse)"""
+    import json
+    
     # Show only profiles that are not private. Use select_related/prefetch for performance.
     profiles = Profile.objects.select_related('user').prefetch_related('profile_skills__skill', 'privacy_settings').all()
     
@@ -549,6 +559,27 @@ def profile_list(request):
             Q(profile_skills__skill__name__icontains=search_query)
         ).distinct()
     
+    # Get view mode (list or map)
+    view_mode = request.GET.get('view', 'list')
+    
+    # Prepare profiles data for map view
+    profiles_data = []
+    for profile in profiles:
+        profile_data = {
+            'id': profile.id,
+            'name': profile.get_full_name(),
+            'headline': profile.headline,
+            'location': profile.location or '',
+            'bio': profile.bio[:150] + '...' if profile.bio and len(profile.bio) > 150 else (profile.bio or ''),
+            'url': profile.user.id if profile.user else None,
+        }
+        # Add coordinates if available
+        if profile.latitude and profile.longitude:
+            profile_data['latitude'] = float(profile.latitude)
+            profile_data['longitude'] = float(profile.longitude)
+        profiles_data.append(profile_data)
+    
+    # Pagination for list view
     paginator = Paginator(profiles, 12)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -556,6 +587,8 @@ def profile_list(request):
     context = {
         'page_obj': page_obj,
         'search_query': search_query,
+        'view_mode': view_mode,
+        'profiles_json': json.dumps(profiles_data),
     }
     return render(request, 'profiles/profile_list.html', context)
 
